@@ -1,35 +1,8 @@
 import argparse
 import numpy as np
-import shlex
-import subprocess
 import sys
 import wave
-import json
-
-from deepspeech import Model, version
-
-try:
-    from shhlex import quote
-except ImportError:
-    from pipes import quote
-
-
-def convert_samplerate(audio_path, desired_sample_rate):
-    sox_cmd = f'sox {quote(audio_path)} --type raw --bits 16 --channels 1 --rate {desired_sample_rate} --encoding ' \
-              f'signed-integer --endian little --compression 0.0 --no-dither - '
-    try:
-        output = subprocess.check_output(shlex.split(sox_cmd), stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError('SoX returned non-zero status: {}'.format(e.stderr))
-    except OSError as e:
-        raise OSError(e.errno,
-                      'SoX not found, use {}hz files or install it: {}'.format(desired_sample_rate, e.strerror))
-
-    return desired_sample_rate, np.frombuffer(output, np.int16)
-
-
-def metadata_to_string(metadata):
-    return ''.join(token.text for token in metadata.tokens)
+from deepspeech import Model
 
 
 def words_from_candidate_transcript(metadata):
@@ -65,22 +38,12 @@ def words_from_candidate_transcript(metadata):
     return word_list
 
 
-def metadata_json_output(metadata):
-    json_result = dict()
-    json_result["transcripts"] = [{
+def postprocess_metadata(metadata):
+    res = [{
         "confidence": transcript.confidence,
         "words": words_from_candidate_transcript(transcript),
     } for transcript in metadata.transcripts]
-    return json.dumps(json_result, indent=2)
-
-
-class VersionAction(argparse.Action):
-    def __init__(self, *args, **kwargs):
-        super(VersionAction, self).__init__(nargs=0, *args, **kwargs)
-
-    def __call__(self, *args, **kwargs):
-        print('DeepSpeech ', version())
-        exit(0)
+    return res
 
 
 def main():
@@ -97,16 +60,7 @@ def main():
                         help='Language model weight (lm_alpha). If not specified, use default from the scorer package.')
     parser.add_argument('--lm_beta', type=float,
                         help='Word insertion bonus (lm_beta). If not specified, use default from the scorer package.')
-    parser.add_argument('--version', action=VersionAction,
-                        help='Print version and exits')
-    parser.add_argument('--extended', required=False, action='store_true',
-                        help='Output string from extended metadata')
-    parser.add_argument('--json', required=False, action='store_true',
-                        help='Output json from metadata with timestamp of each word')
-    parser.add_argument('--candidate_transcripts', type=int, default=3,
-                        help='Number of candidate transcripts to include in JSON output')
-    parser.add_argument('--hot_words', type=str,
-                        help='Hot-words and their boosts.')
+    parser.add_argument('--hot_words', type=str, help='Hot-words and their boosts.')
     args = parser.parse_args()
 
     print('Loading model from file {}'.format(args.model), file=sys.stderr)
@@ -133,23 +87,17 @@ def main():
     fin = wave.open(args.audio, 'rb')
     fs_orig = fin.getframerate()
     if fs_orig != desired_sample_rate:
-        print(
-            f'Warning: original sample rate ({fs_orig}) is different than {desired_sample_rate}hz. Resampling might '
-            f'produce erratic speech recognition.',
-            file=sys.stderr)
-        fs_new, audio = convert_samplerate(args.audio, desired_sample_rate)
-    else:
-        audio = np.frombuffer(fin.readframes(fin.getnframes()), np.int16)
+        print(f'ERROR: original sample rate ({fs_orig}) is different than {desired_sample_rate}hz.', file=sys.stderr)
+        exit(1)
+
+    audio = np.frombuffer(fin.readframes(fin.getnframes()), np.int16)
 
     fin.close()
 
     print('Running inference.', file=sys.stderr)
-    if args.extended:
-        print(metadata_to_string(ds.sttWithMetadata(audio, 1).transcripts[0]))
-    elif args.json:
-        print(metadata_json_output(ds.sttWithMetadata(audio, args.candidate_transcripts)))
-    else:
-        print(ds.stt(audio))
+    res = ds.sttWithMetadata(audio, 3)
+    print(res)
+    print(postprocess_metadata(res))
 
 
 if __name__ == '__main__':
