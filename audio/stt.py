@@ -9,31 +9,38 @@ def words_from_candidate_transcript(metadata):
     word = ""
     word_list = []
     word_start_time = 0
-    # Loop through each character
+    # loop through each character
     for i, token in enumerate(metadata.tokens):
-        # Append character to word if it's not a space
+        # append character to word if it's not a space
         if token.text != " ":
             if len(word) == 0:
-                # Log the start time of the new word
+                # <SIL>
+                word_dict = dict()
+                word_dict["word"] = "<SIL>"
+                word_dict["start_time"] = round(word_start_time, 4)
+                word_dict["duration"] = round(token.start_time - word_start_time, 4)
+                word_list.append(word_dict)
+
+                # log the start time of the new word
                 word_start_time = token.start_time
 
             word = word + token.text
-        # Word boundary is either a space or the last character in the array
+        # word boundary is either a space or the last character in the array
         if token.text == " " or i == len(metadata.tokens) - 1:
             word_duration = token.start_time - word_start_time
 
             if word_duration < 0:
                 word_duration = 0
 
-            each_word = dict()
-            each_word["word"] = word
-            each_word["start_time"] = round(word_start_time, 4)
-            each_word["duration"] = round(word_duration, 4)
+            word_dict = dict()
+            word_dict["word"] = word
+            word_dict["start_time"] = round(word_start_time, 4)
+            word_dict["duration"] = round(word_duration, 4)
+            word_list.append(word_dict)
 
-            word_list.append(each_word)
-            # Reset
+            # reset
             word = ""
-            word_start_time = 0
+            word_start_time = token.start_time  # remember the start time of current silence
 
     return word_list
 
@@ -96,8 +103,8 @@ def main():
 
     print('Running inference.', file=sys.stderr)
     res = ds.sttWithMetadata(audio, 3)
+    res = postprocess_metadata(res)
     print(res)
-    print(postprocess_metadata(res))
 
 
 if __name__ == '__main__':
