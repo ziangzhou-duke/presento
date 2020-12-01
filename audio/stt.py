@@ -53,6 +53,42 @@ def postprocess_metadata(metadata):
     return res
 
 
+def stt(model_path, audio, beam_width=None, scorer_path=None, lm_alpha=None, lm_beta=None, hot_words=None):
+    ds = Model(model_path)
+
+    if beam_width:
+        ds.setBeamWidth(beam_width)
+
+    desired_sample_rate = ds.sampleRate()
+
+    if scorer_path:
+        ds.enableExternalScorer(scorer_path)
+
+        if lm_alpha and lm_beta:
+            ds.setScorerAlphaBeta(lm_alpha, lm_beta)
+
+    if hot_words:
+        print('Adding hot-words', file=sys.stderr)
+        for word_boost in hot_words.split(','):
+            word, boost = word_boost.split(':')
+            ds.addHotWord(word, float(boost))
+
+    fin = wave.open(audio, 'rb')
+    fs_orig = fin.getframerate()
+    if fs_orig != desired_sample_rate:
+        print(f'ERROR: original sample rate ({fs_orig}) is different than {desired_sample_rate}hz.', file=sys.stderr)
+        exit(1)
+
+    audio = np.frombuffer(fin.readframes(fin.getnframes()), np.int16)
+
+    fin.close()
+
+    print('Running inference.', file=sys.stderr)
+    res = ds.sttWithMetadata(audio, 3)
+    res = postprocess_metadata(res)
+    return res
+
+
 def main():
     parser = argparse.ArgumentParser(description='Running DeepSpeech inference.')
     parser.add_argument('--model', required=True,
@@ -70,41 +106,8 @@ def main():
     parser.add_argument('--hot_words', type=str, help='Hot-words and their boosts.')
     args = parser.parse_args()
 
-    print('Loading model from file {}'.format(args.model), file=sys.stderr)
-    ds = Model(args.model)
-
-    if args.beam_width:
-        ds.setBeamWidth(args.beam_width)
-
-    desired_sample_rate = ds.sampleRate()
-
-    if args.scorer:
-        print('Loading scorer from files {}'.format(args.scorer), file=sys.stderr)
-        ds.enableExternalScorer(args.scorer)
-
-        if args.lm_alpha and args.lm_beta:
-            ds.setScorerAlphaBeta(args.lm_alpha, args.lm_beta)
-
-    if args.hot_words:
-        print('Adding hot-words', file=sys.stderr)
-        for word_boost in args.hot_words.split(','):
-            word, boost = word_boost.split(':')
-            ds.addHotWord(word, float(boost))
-
-    fin = wave.open(args.audio, 'rb')
-    fs_orig = fin.getframerate()
-    if fs_orig != desired_sample_rate:
-        print(f'ERROR: original sample rate ({fs_orig}) is different than {desired_sample_rate}hz.', file=sys.stderr)
-        exit(1)
-
-    audio = np.frombuffer(fin.readframes(fin.getnframes()), np.int16)
-
-    fin.close()
-
-    print('Running inference.', file=sys.stderr)
-    res = ds.sttWithMetadata(audio, 3)
-    res = postprocess_metadata(res)
-    print(res)
+    res = stt(args.model, args.audio, args.beam_width, args.scorer, args.lm_alpha, args.lm_beta, args.hot_words)
+    return res
 
 
 if __name__ == '__main__':
