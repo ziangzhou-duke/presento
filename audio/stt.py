@@ -67,11 +67,11 @@ def stt(model_path, audio, beam_width=None, scorer_path=None, lm_alpha=None, lm_
         if lm_alpha and lm_beta:
             ds.setScorerAlphaBeta(lm_alpha, lm_beta)
 
-    if hot_words:
-        print('Adding hot-words', file=sys.stderr)
-        for word_boost in hot_words.split(','):
-            word, boost = word_boost.split(':')
-            ds.addHotWord(word, float(boost))
+    # TODO
+    # if hot_words:
+    #     print('Adding hot-words', file=sys.stderr)
+    #     for w in hot_words:
+    #         ds.addHotWord(w, 6.2)
 
     fin = wave.open(audio, 'rb')
     fs_orig = fin.getframerate()
@@ -90,6 +90,7 @@ def stt(model_path, audio, beam_width=None, scorer_path=None, lm_alpha=None, lm_
 
 
 def main():
+    from audio.analyze_text import FILLER_WORDS
     parser = argparse.ArgumentParser(description='Running DeepSpeech inference.')
     parser.add_argument('--model', required=True,
                         help='Path to the model (protocol buffer binary file)')
@@ -103,12 +104,12 @@ def main():
                         help='Language model weight (lm_alpha). If not specified, use default from the scorer package.')
     parser.add_argument('--lm_beta', type=float,
                         help='Word insertion bonus (lm_beta). If not specified, use default from the scorer package.')
-    parser.add_argument('--hot_words', type=str, help='Hot-words and their boosts.')
     args = parser.parse_args()
 
-    res = stt(args.model, args.audio, args.beam_width, args.scorer, args.lm_alpha, args.lm_beta, args.hot_words)
+    res = stt(args.model, args.audio, args.beam_width, args.scorer, args.lm_alpha, args.lm_beta,
+              FILLER_WORDS)
     return res
 
 
 if __name__ == '__main__':
-    main()
+    print(main())

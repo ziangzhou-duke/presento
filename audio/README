@@ -1,3 +1,17 @@
 # Dependencies
 
-- mozilla/deepspeech
+- mozilla/deepspeech (uses librispeech lm model at http://www.openslr.org/11)
+
+# Analysis
+
+- volume
+- tot = total number of tokens (including fillers)
+- SIL = silence, excluding those between sentences
+- mdsil = mean duration of SIL
+- mdstp = mean duration of stopwords
+- siltot = duration of SIL / total duration
+- unw = unique number of words
+- unwtot = unique number of words / tot
+- nwps = number of words per second
+- number of filler words
+- number of filler words / tot

@@ -3,4 +3,4 @@ from audio.analyze_text import analyze
 
 if __name__ == '__main__':
     res = main()
-    analyze(res)
+    print(analyze(res))
