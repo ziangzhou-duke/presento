@@ -41,6 +41,20 @@ def analyze(transcript):
     ret = dict(tot=0, mdsil=0, mdstp=0, siltot=0, unw=0, unwtot=0, nwps=0)
 
     segments = [tr['word'] for tr in transcript]
+
+    # remove leading and trailing SIL
+    n = len(segments)
+    i = 0
+    j = n - 1
+    while i < n and j >= 0:
+        if transcript[i]['word'] != '<SIL>' and transcript[j]['word'] != '<SIL>':
+            break
+
+        if transcript[i]['word'] == '<SIL>':
+            i += 1
+        if transcript[j]['word'] == '<SIL>':
+            j -= 1
+    segments = segments[i:j + 1]
     print(segments)
 
     # fillers = count_words(segments)
