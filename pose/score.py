@@ -1,4 +1,5 @@
 from pose import pose_model
+import numpy as np
 import cv2
 import math
 import sys
@@ -15,7 +16,9 @@ try:
 except:
     raise RuntimeError("Not able to read video")
 
+# fps = math.ceil(cap.get(cv2.CAP_PROP_FPS))
 fps = math.ceil(cap.get(cv2.CAP_PROP_FPS))
+fps = fps // 5
 
 i = 0
 kb = None
@@ -32,7 +35,6 @@ while cap.isOpened() and flag != 2:
             flag += 1
             continue
         if kb and k:
-
             try:
                 lw = k[5]
                 rw = k[2]
@@ -43,36 +45,33 @@ while cap.isOpened() and flag != 2:
                     distL = math.sqrt(((lw[0] - Lw[0]) ** 2) + ((lw[1] - Lw[1]) ** 2))
                     distR = norm(distR)
                     distL = norm(distL)
-                    print(distR, distL, "***")
-                    # if(c>fps):
+                    print(distR, distL)
+                    score.append(distL + distR)
+                    # if(c > fps):
                     #     score.append(0.9)
                     #     c = 0
-                    if distR < 0.1 or distL < 0.1:
-                        c += 1
 
-                    else:
-                        if c > fps:
-                            score.append(0.9)
-                        elif c in range(fps - 10, fps):
-                            score.append(0.8)
-                        elif c in range(fps - 20, fps - 10):
-                            score.append(0.5)
-                        else:
-                            score.append(0.2)
-                        c = 0
+                    # if distR < 0.1 or distL < 0.1:
+                    #     c += 1
+                    # else:
+                    #     if c > fps:
+                    #         score.append(0.9)
+                    #     elif c in range(fps - 10, fps):
+                    #         score.append(0.8)
+                    #     elif c in range(fps - 20, fps - 10):
+                    #         score.append(0.5)
+                    #     else:
+                    #         score.append(0.2)
+                    #     c = 0
             except:
                 pass
-
         kb = k
         i = 0
 
     i += 1
-    if 0xFF == ord('q'):
-        break
+    # if 0xFF == ord('q'):
+    #     break
 
-# print(temp)
-# print(c)
-# print(fps)
-print(score)
+print(np.mean(score))
 cap.release()
 cv2.destroyAllWindows()

@@ -4,23 +4,20 @@ import pylab as plt
 import numpy as np
 import math
 import tensorflow as tf
-
 from numpy import ma
 from tensorflow.keras.models import load_model
 from pose.models.mobilenet_model import get_mobilenet_model
 from scipy.ndimage.filters import gaussian_filter
 
-######################################################
 weights_path = "weights.best.mobilenet.h5"
 model = get_mobilenet_model(1.0, 224)
 model.load_weights(weights_path)
 
 
-#########################################
 def get_points(oriImg):
-    canvas = cv2.resize(oriImg, (224, 224))
+    # canvas = cv2.resize(oriImg, (224, 224))
     oriImg = cv2.resize(oriImg, (224, 224))
-    input_img = np.transpose(np.float32(oriImg[:, :, :, np.newaxis]), (3, 0, 1, 2))
+    # input_img = np.transpose(np.float32(oriImg[:, :, :, np.newaxis]), (3, 0, 1, 2))
     input_img = oriImg[np.newaxis, ...]
     # print("Input shape: " + str(input_img.shape))
     output_blobs = model.predict(input_img)
@@ -185,9 +182,9 @@ def get_points(oriImg):
 
     scale = 8
 
-    colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0], [85, 255, 0], [0, 255, 0],
-              [0, 255, 85], [0, 255, 170], [0, 255, 255], [0, 170, 255], [0, 85, 255], [0, 0, 255], [85, 0, 255],
-              [170, 0, 255], [255, 0, 255], [255, 0, 170], [255, 0, 85]]
+    # colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0], [85, 255, 0], [0, 255, 0],
+    #           [0, 255, 85], [0, 255, 170], [0, 255, 255], [0, 170, 255], [0, 85, 255], [0, 0, 255], [85, 0, 255],
+    #           [170, 0, 255], [255, 0, 255], [255, 0, 170], [255, 0, 85]]
     cmap = matplotlib.cm.get_cmap('hsv')
     req = {}
     keypt = []
