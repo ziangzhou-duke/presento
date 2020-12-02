@@ -54,11 +54,10 @@ def analyze(transcript):
             i += 1
         if transcript[j]['word'] == '<SIL>':
             j -= 1
-    segments = segments[i:j + 1]
+    segments = [tr['word'] for tr in transcript[i:j + 1] if tr['word'] != '<SIL>' or tr['duration'] < 3]
     print(segments)
 
     # fillers = count_words(segments)
-
     ret['tot'] = len(segments)
     ret['unw'] = len(list(set(segments)))
     ret['unwtot'] = ret['unw'] / ret['tot']
