@@ -18,48 +18,30 @@
 
 # Standard talks
 
-ted1:
+standard:
+- tot: 1528
+- mdsil: 0.3581
+- mdstp: 0.07987
+- siltot: 0.8145
+- unw: 374
+- unwtot: 0.2494
+- nwps: 4.6267
+
+cppcon:
 - 'tot': 1225
-- 'mdsil': 0.3194444444444444
-- 'mdstp': 0.06624060150375939
-- 'siltot': 0.7984154210569283
+- 'mdsil': 0.3194
+- 'mdstp': 0.06624
+- 'siltot': 0.7984
 - 'unw': 329
-- 'unwtot': 0.26857142857142857
-- 'nwps': 5.002858776443668
+- 'unwtot': 0.2686
+- 'nwps': 5.002
 
-ted2:
-- 'tot': 2223
-- 'mdsil': 0.3225382538253826
-- 'mdstp': 0.07232682060390763
-- 'siltot': 0.8029488213677435
-- 'unw': 491
-- 'unwtot': 0.22087269455690509
-- 'nwps': 4.981177735950476
-
-ted3:
-- 'tot': 1841
-- 'mdsil': 0.35882608695652174
-- 'mdstp': 0.06264058679706602
-- 'siltot': 0.8483322197666593
-- 'unw': 444
-- 'unwtot': 0.2411732753938077
-- 'nwps': 4.7309451611245
-
-
-ted4:
-- 'tot': 1297
-- 'mdsil': 0.3322222222222222
-- 'mdstp': 0.09589928057553955
-- 'siltot': 0.7981018758804753
-- 'unw': 328
-- 'unwtot': 0.2528912875867386
-- 'nwps': 4.8083339512122665
-
-ted5:
-- 'tot': 1055
-- 'mdsil': 0.4573055028462998
-- 'mdstp': 0.10224806201550389
-- 'siltot': 0.8246646591842315
-- 'unw': 278
-- 'unwtot': 0.26350710900473934
-- 'nwps': 3.6100465370927974
+# #################
+Example talk from cppcon:
+- Mean duration of silence: 0.3194 compared to 0.3581,
+  You are probably talking too long without breaking, there's no enough gap between sentences
+  for the audience to digest your content!
+- Unique number of words: 329 compared to 374
+- Unique number of words divided by total number of words: 0.2686 compared to 0.2494
+ Doing good, you are using appropriate number of vocabularies so that the audience won't feel bored
+- Number of words per second: 5.002 compared to 4.6267, you're probably talking a little too fast

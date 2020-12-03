@@ -84,7 +84,7 @@ def stt(model_path, audio, beam_width=None, scorer_path=None, lm_alpha=None, lm_
     fin.close()
 
     print('Running inference.', file=sys.stderr)
-    res = ds.sttWithMetadata(audio, 3)
+    res = ds.sttWithMetadata(audio, 1)
     res = postprocess_metadata(res)
     return res
 
@@ -106,8 +106,7 @@ def main():
                         help='Word insertion bonus (lm_beta). If not specified, use default from the scorer package.')
     args = parser.parse_args()
 
-    res = stt(args.model, args.audio, args.beam_width, args.scorer, args.lm_alpha, args.lm_beta,
-              FILLER_WORDS)
+    res = stt(args.model, args.audio, args.beam_width, args.scorer, args.lm_alpha, args.lm_beta, FILLER_WORDS)
     return res
 
 
