@@ -7,13 +7,13 @@ Our project aims at building an APP that provides customized guidance to improve
  - [ ] High costs to practice
  - [ ] Lacl of immediate motivation
  
- - [x] Lack of timely feedback & instructions
+ - [x] Lack of timely feedback & instructions  
        Provide instant feedback from multiple dimensions
- - [x] Limited oppurtunities to practice
+ - [x] Limited oppurtunities to practice  
        Analyze any speech you already made/recorded
- - [x] High costs to practice
+ - [x] High costs to practice  
        Minimal membership fees and free tials
- - [x] Lacl of immediate motivation
+ - [x] Lacl of immediate motivation  
        Sense of community and credit system for higher motivation
 
 ### Support or Contact
