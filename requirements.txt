@@ -4,3 +4,14 @@ opencv-python
 numpy
 matplotlib
 scikit-learn
+scipy
+pandas
+scikit-image
+dlib
+txaio
+autobahn
+twisted
+OpenSSL
+pyopenssl
+imagehash
+service_identity
