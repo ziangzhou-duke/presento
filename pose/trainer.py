@@ -2,15 +2,19 @@ from sklearn.preprocessing import MinMaxScaler
 import torch.utils.data as data
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
+from tqdm import trange
 from datasets import *
 from models import *
 
 
-class EmotionRecognitionSystem:
+class Trainer:
     def __init__(self, args):
         print(f'================\nargs:\n{args}\n================')
         self.args = args
         os.makedirs(args.out_dir, exist_ok=True)
+
+        self.init_datasets()
+        self.current_epoch = 0
 
     def get_scaler(self):
         scaler = {}
@@ -24,7 +28,7 @@ class EmotionRecognitionSystem:
 
         return scaler
 
-    def fit(self):
+    def init_datasets(self):
         data = get_babyrobot_data()
         faces, bodies, hands_right, hands_left, lengths, Y, Y_face, Y_body, paths, groups = data
 
@@ -57,21 +61,16 @@ class EmotionRecognitionSystem:
         self.train_dataset.prepad()
         self.test_dataset.prepad()
 
-        print("scaled data")
-
-        if self.args.batch_size == -1:
-            batch_size = len(self.train_dataset)
-        else:
-            batch_size = self.args.batch_size
-
+    def train(self):
+        batch_size = self.args.batch_size
         self.dataloader_train = torch.utils.data.DataLoader(
             self.train_dataset, shuffle=True, batch_size=batch_size, drop_last=True, num_workers=4
         )
         self.dataloader_test = torch.utils.data.DataLoader(
             self.test_dataset, batch_size=len(self.test_dataset), num_workers=4
         )
-
         self.model = BodyFaceEmotionClassifier(self.args).cuda()
+
         self._fit()
 
     def _fit(self):
@@ -110,22 +109,22 @@ class EmotionRecognitionSystem:
 
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=self.args.step_size, gamma=0.1)
 
-        self.mat = np.empty(0)
-
+        t = trange(len(self.dataloader_train))
         lr = -1.0
-        for self.current_epoch in range(0, self.args.epochs):
+        for self.current_epoch in range(self.args.epochs):
             train_acc, train_loss = self.train_epoch()
 
             for param_group in self.optimizer.param_groups:
                 lr = param_group['lr']
 
-            val_top_all, val_top_body, val_top_face, val_loss, p, r, f = self.eval()
-            print(
-                f'[Epoch: {self.current_epoch:3d}/{self.args.epochs:3d}] Training Loss: {train_loss:.3f}, '
-                f'Validation Loss: {val_loss:.3f}, Training Acc: {train_acc:.3f}, Validation Acc: '
-                f'{val_top_all:.3f}, Validation Acc Body: {val_top_body:.3f}, Validation Acc Face: '
-                f'{val_top_face:.3f}, Learning Rate:{lr:.8f}'
+            val_top_all, val_top_body, val_top_face, p, r, f = self.eval()
+
+            t.set_postfix(
+                epoch=self.current_epoch, trian_loss=train_loss, train_acc=train_acc,
+                val_acc=val_top_all, val_body_acc=val_top_body, val_face_acc=val_top_face,
+                lr=lr
             )
+            t.update()
 
     def train_epoch(self):
         self.model.train()
@@ -194,25 +193,23 @@ class EmotionRecognitionSystem:
             self.optimizer.step()
             self.scheduler.step()
 
-            if self.current_epoch == self.args.epochs - 1:
-                if self.args.split_branches:
-                    if self.args.do_fusion:
-                        accs = accuracy(out_fusion, y, topk=(1,))
-                    else:
-                        accs = accuracy(out, y, topk=(1,))
-                    accuracy_meter_top_all.update(accs[0].item(), length.size(0))
-                    loss_meter.update(loss.item(), length.size(0))
-
+            if self.args.split_branches:
+                if self.args.do_fusion:
+                    accs = accuracy(out_fusion, y, topk=(1,))
                 else:
-                    if self.args.use_labels == "body":
-                        accs = accuracy(out, y_body, topk=(1,))
-                    elif self.args.use_labels == "face":
-                        accs = accuracy(out, y_face, topk=(1,))
-                    else:
-                        accs = accuracy(out, y, topk=(1,))
+                    accs = accuracy(out, y, topk=(1,))
+                accuracy_meter_top_all.update(accs[0].item(), length.size(0))
+                loss_meter.update(loss.item(), length.size(0))
+            else:
+                if self.args.use_labels == "body":
+                    accs = accuracy(out, y_body, topk=(1,))
+                elif self.args.use_labels == "face":
+                    accs = accuracy(out, y_face, topk=(1,))
+                else:
+                    accs = accuracy(out, y, topk=(1,))
 
-                    accuracy_meter_top_all.update(accs[0], body.size(0))
-                    loss_meter.update(loss.item(), body.size(0))
+                accuracy_meter_top_all.update(accs[0], body.size(0))
+                loss_meter.update(loss.item(), body.size(0))
 
         return accuracy_meter_top_all.avg, loss_meter.avg
 
@@ -220,7 +217,6 @@ class EmotionRecognitionSystem:
         accuracy_meter_top_all = AverageMeter()
         accuracy_meter_top_face = AverageMeter()
         accuracy_meter_top_body = AverageMeter()
-        loss_meter = AverageMeter()
 
         with torch.no_grad():
             self.model.eval()
@@ -236,7 +232,8 @@ class EmotionRecognitionSystem:
                     if self.args.do_fusion:
 
                         out, out_body, out_face, out_fusion = self.model.forward(
-                            (face, body, hand_right, hand_left, length, facial_cnn_features))
+                            (face, body, hand_right, hand_left, length, facial_cnn_features)
+                        )
 
                         if not self.args.add_whole_body_branch:
                             out = out_fusion
@@ -255,7 +252,8 @@ class EmotionRecognitionSystem:
 
                     else:
                         out, out_body, out_face = self.model.forward(
-                            (face, body, hand_right, hand_left, length, facial_cnn_features))
+                            (face, body, hand_right, hand_left, length, facial_cnn_features)
+                        )
 
                         accs = accuracy(out, y, topk=(1,))
                         accs_face = accuracy(out_face, y_face, topk=(1,))
@@ -274,10 +272,8 @@ class EmotionRecognitionSystem:
                         (face, body, hand_right, hand_left, length, facial_cnn_features))
 
                     if self.args.use_labels == "body":
-                        t = y
                         y = y_body
                     elif self.args.use_labels == "face":
-                        t = y
                         y = y_face
 
                     accs = accuracy(out, y, topk=(1,))
@@ -289,60 +285,13 @@ class EmotionRecognitionSystem:
 
                     accuracy_meter_top_all.update(accs[0].item(), length.size(0))
 
-                if self.current_epoch == self.args.epochs - 1:
-                    out = out.cpu()
-                    y = y.cpu()
-
-                    np.save(
-                        f"{self.args.out_dir}/{self.args.exp_name}_out",
-                        out
-                    )
-                    np.save(
-                        f"{self.args.out_dir}/{self.args.exp_name}_y",
-                        y)
-
-                    np.save(
-                        f"{self.args.out_dir}/{self.args.exp_name}_paths",
-                        np.array(batch['paths']))
-
-                    if self.args.split_branches:
-                        out_face = out_face.cpu()
-                        out_body = out_body.cpu()
-                        y_face = y_face.cpu()
-                        y_body = y_body.cpu()
-                        np.save(
-                            f"{self.args.out_dir}/{self.args.exp_name}_out_face",
-                            out_face
-                        )
-                        np.save(
-                            f"{self.args.out_dir}/{self.args.exp_name}_y_face",
-                            y_face
-                        )
-
-                        np.save(
-                            f"{self.args.out_dir}/{self.args.exp_name}_out_body",
-                            out_body
-                        )
-                        np.save(
-                            f"{self.args.out_dir}/{self.args.exp_name}_y_body",
-                            y_body
-                        )
-
-                    if self.args.do_fusion:
-                        out_fusion = out_fusion.cpu()
-                        np.save(
-                            f"{self.args.out_dir}/{self.args.exp_name}_out_fusion",
-                            out_fusion
-                        )
-
-                if get_confusion_matrix and self.current_epoch == self.args.epochs - 1:
+                if get_confusion_matrix:
                     conf = confusion_matrix(
                         y.cpu().numpy(), torch.argmax(out, dim=1).cpu().numpy(), labels=range(0, self.args.num_classes)
                     )
+                    print(conf)
 
-                    if self.confusion_matrix.shape[0] == 0:
-                        self.confusion_matrix = conf
-                    else:
-                        self.confusion_matrix = self.confusion_matrix + conf
-
-        return accuracy_meter_top_all.avg, accuracy_meter_top_body.avg, accuracy_meter_top_face.avg, loss_meter.avg, p * 100, r * 100, f * 100
+        return (
+            accuracy_meter_top_all.avg, accuracy_meter_top_body.avg, accuracy_meter_top_face.avg, p * 100, r * 100,
+            f * 100
+        )

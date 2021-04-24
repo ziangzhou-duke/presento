@@ -1,6 +1,6 @@
 import matplotlib
 
-from pose.emotion_system import EmotionRecognitionSystem
+from pose.trainer import Trainer
 
 matplotlib.use('Agg')
 import argparse
@@ -68,8 +68,8 @@ def parse_opts():
 
 def main():
     args = parse_opts()
-    b = EmotionRecognitionSystem(args)
-    b.fit()
+    b = Trainer(args)
+    b.train()
 
 
 if __name__ == '__main__':
