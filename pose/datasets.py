@@ -12,7 +12,6 @@ import pickle
 import time
 from shutil import copyfile, copytree
 
-
 babyrobot_mapper = {
     "Happiness": 0,
     "Sadness": 1,
@@ -22,7 +21,6 @@ babyrobot_mapper = {
     "Anger": 5,
     "Neutral": 6,
 }
-
 
 inv_babyrobot_mapper = {
     5: "Anger",
@@ -35,16 +33,17 @@ inv_babyrobot_mapper = {
 }
 
 
-
 def get_db_splits(db):
     """ get the splits for each dataset for cross validation """
     return [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12], [13, 14, 15], [16, 17, 18], [19, 20, 21],
-                  [22, 23, 24], [25, 26, 27], [28, 29, 30]]
+            [22, 23, 24], [25, 26, 27], [28, 29, 30]]
+
 
 def get_all_db_subjects(db):
     """ get  subjects for each db """
     return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-                26, 27, 28, 29, 30]
+            26, 27, 28, 29, 30]
+
 
 def get_babyrobot_annotations():
     """ load the annotations of the babyrobot dataset """
@@ -52,14 +51,13 @@ def get_babyrobot_annotations():
     subject_to_number = {}
     data = []
 
-
     subj_idx = 0
     with open("BRED_dataset/annotations.csv") as data_file:
         for x in data_file.readlines()[1:]:
             v = {
                 "path": x.split(",")[0].split(".")[0],
                 "subject": x.split(",")[0].split("/")[2],
-                "emotion": babyrobot_mapper[x.split(",")[1].strip()], # map emotion to number
+                "emotion": babyrobot_mapper[x.split(",")[1].strip()],  # map emotion to number
                 "ann_1_does_emotion_body": x.split(",")[2].strip(),
                 "ann_1_does_emotion_face": x.split(",")[3].strip(),
                 "ann_2_does_emotion_body": x.split(",")[4].strip(),
@@ -86,8 +84,7 @@ def get_babyrobot_annotations():
     return data, subject_to_number
 
 
-def get_babyrobot_data(subjects=list(range(0,31))):
-
+def get_babyrobot_data(subjects=list(range(0, 31))):
     data, subject_to_number = get_babyrobot_annotations()
 
     faces, bodies, lengths, hands_right, hands_left, Y, Y_face, Y_body, raw_face_paths = [], [], [], [], [], [], [], [], []
@@ -100,15 +97,17 @@ def get_babyrobot_data(subjects=list(range(0,31))):
     for video in data:
         label = video['emotion']
 
-        label_body = label if video['does_emotion_body'] == "yes" else 6 # the hierarchical body label is equal to the whole body emotion label if the child did the emotion with the body or neutral otherwise
-        label_face = label if video['does_emotion_face'] == "yes" else 6 # the hierarchical face label is equal to the whole body emotion label if the child did the emotion with the face or neutral otherwise
+        label_body = label if video[
+                                  'does_emotion_body'] == "yes" else 6  # the hierarchical body label is equal to the whole body emotion label if the child did the emotion with the body or neutral otherwise
+        label_face = label if video[
+                                  'does_emotion_face'] == "yes" else 6  # the hierarchical face label is equal to the whole body emotion label if the child did the emotion with the face or neutral otherwise
 
         groups.append(subject_to_number[video['subject']])
 
         # ========================= Load Openface Features ==========================
 
         name = video['path'].split("/")[-1]
-        csv = os.path.join(video['path'],  "openface_output.csv")  # path of csv openface file
+        csv = os.path.join(video['path'], "openface_output.csv")  # path of csv openface file
 
         seq = pd.read_csv(csv, delimiter=",")
         seq.columns = seq.columns.str.strip()
@@ -141,12 +140,11 @@ def get_babyrobot_data(subjects=list(range(0,31))):
         Y_body.append(label_body)
         paths.append(video['path'])
 
-    
     return faces, bodies, hands_right, hands_left, lengths, Y, Y_face, Y_body, paths, groups
 
 
-def get_keypoints_from_json_list(json_list, json_dir, subject=None,emotion=None, visualize=False):
-    global k1,k2
+def get_keypoints_from_json_list(json_list, json_dir, subject=None, emotion=None, visualize=False):
+    global k1, k2
     keypoints_array, hand_left_keypoints_array, hand_right_keypoints_array = [], [], []
 
     is_first = True
@@ -178,8 +176,9 @@ def get_keypoints_from_json_list(json_list, json_dir, subject=None,emotion=None,
 
         # ========================= Spatial Normalization ==========================
         if visualize:
-            visualize_skeleton_openpose(keypoints,hand_left_keypoints, hand_right_keypoints, filename="figs/%04d.jpg"%visualization_counter)
-            visualization_counter+=1
+            visualize_skeleton_openpose(keypoints, hand_left_keypoints, hand_right_keypoints,
+                                        filename="figs/%04d.jpg" % visualization_counter)
+            visualization_counter += 1
 
         normalize_point_x = keypoints[8, 0]
         normalize_point_y = keypoints[8, 1]
@@ -187,18 +186,19 @@ def get_keypoints_from_json_list(json_list, json_dir, subject=None,emotion=None,
         keypoints[:, 0] -= normalize_point_x
         keypoints[:, 1] -= normalize_point_y
 
-        hand_left_keypoints[:, 0] = hand_left_keypoints[:, 0]  - hand_left_keypoints[0, 0]
+        hand_left_keypoints[:, 0] = hand_left_keypoints[:, 0] - hand_left_keypoints[0, 0]
         hand_left_keypoints[:, 1] = hand_left_keypoints[:, 1] - hand_left_keypoints[0, 1]
 
-        hand_right_keypoints[:, 0] = hand_right_keypoints[:, 0] - hand_right_keypoints[0,0]
-        hand_right_keypoints[:, 1] = hand_right_keypoints[:, 1] - hand_right_keypoints[0,1]
+        hand_right_keypoints[:, 0] = hand_right_keypoints[:, 0] - hand_right_keypoints[0, 0]
+        hand_right_keypoints[:, 1] = hand_right_keypoints[:, 1] - hand_right_keypoints[0, 1]
 
         keypoints_array.append(np.reshape(keypoints, (-1)))
         hand_left_keypoints_array.append(np.reshape(hand_left_keypoints, (-1)))
         hand_right_keypoints_array.append(np.reshape(hand_right_keypoints, (-1)))
 
     if visualize:
-        os.system("ffmpeg -framerate 30 -i figs_tmp/%%04d.jpg -c:v libx264 -pix_fmt yuv420p figs_tmp/%s_%s.mp4" % (subject,emotion))
+        os.system("ffmpeg -framerate 30 -i figs_tmp/%%04d.jpg -c:v libx264 -pix_fmt yuv420p figs_tmp/%s_%s.mp4" % (
+        subject, emotion))
         os.system("find figs_tmp/ -maxdepth 1 -type f -iname \*.jpg -delete")
 
     return keypoints_array, hand_left_keypoints_array, hand_right_keypoints_array
@@ -224,8 +224,9 @@ class BodyFaceDataset(data.Dataset):
                 self.paths = [paths[x] for x in indices]
                 self.groups = [groups[x] for x in indices]
 
-            elif subjects !=None:
-                self.faces, self.bodies, self.hands_right, self.hands_left, self.lengths, self.Y, self.Y_face, self.Y_body, self.paths, self.groups = get_babyrobot_data(subjects=subjects)
+            elif subjects != None:
+                self.faces, self.bodies, self.hands_right, self.hands_left, self.lengths, self.Y, self.Y_face, self.Y_body, self.paths, self.groups = get_babyrobot_data(
+                    subjects=subjects)
 
         self.lengths = []
         for index in range(len(self.bodies)):
@@ -246,7 +247,6 @@ class BodyFaceDataset(data.Dataset):
         self.bodies = [scaler['bodies'].transform(x) for x in self.bodies]
         self.faces = [scaler['faces'].transform(x) for x in self.faces]
 
-
     def to_tensors(self):
         self.hands_right = [torch.from_numpy(x).float() for x in self.hands_right]
         self.hands_left = [torch.from_numpy(x).float() for x in self.hands_left]
@@ -254,12 +254,12 @@ class BodyFaceDataset(data.Dataset):
         self.faces = [torch.from_numpy(x).float() for x in self.faces]
 
     def prepad(self):
-        """ prepad sequences to the max length sequence of each database """    
-        max_len=323
-        self.bodies = pad_sequence(self.bodies, batch_first=True, max_len = max_len)
-        self.hands_right = pad_sequence(self.hands_right, batch_first=True, max_len = max_len)
-        self.hands_left = pad_sequence(self.hands_left, batch_first=True, max_len = max_len)
-        self.faces = pad_sequence(self.faces, batch_first=True, max_len = max_len)
+        """ prepad sequences to the max length sequence of each database """
+        max_len = 323
+        self.bodies = pad_sequence(self.bodies, batch_first=True, max_len=max_len)
+        self.hands_right = pad_sequence(self.hands_right, batch_first=True, max_len=max_len)
+        self.hands_left = pad_sequence(self.hands_left, batch_first=True, max_len=max_len)
+        self.faces = pad_sequence(self.faces, batch_first=True, max_len=max_len)
         self.features = pad_sequence(self.features, batch_first=True, max_len=max_len)
 
     def __len__(self):
@@ -279,7 +279,7 @@ class BodyFaceDataset(data.Dataset):
         else:
             features = torch.Tensor(1)
 
-        if self.args.db == "babyrobot": 
+        if self.args.db == "babyrobot":
             label_face = self.Y_face[index]
             label_body = self.Y_body[index]
 

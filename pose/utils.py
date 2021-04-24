@@ -1,7 +1,8 @@
 import torch
 import numpy as np
 
-def accuracy(output, target, topk=(1,), weighted = False):
+
+def accuracy(output, target, topk=(1,), weighted=False):
     """Computes the precision@k for the specified values of k"""
     with torch.no_grad():
         maxk = max(topk)
@@ -18,6 +19,7 @@ def accuracy(output, target, topk=(1,), weighted = False):
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
 
+
 def visualize_skeleton(sequence, joints):
     import numpy as np
     import cv2
@@ -28,18 +30,19 @@ def visualize_skeleton(sequence, joints):
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
+
     # ax = fig.add_subplot(111)
 
     def update_plot(i, data, scat):
-        scat.set_offsets(data[i].reshape(-1,3))
+        scat.set_offsets(data[i].reshape(-1, 3))
         return scat
 
     # for frame in range(0,len(sequence)):
     frame = 100
-    skeleton = sequence[frame].reshape(-1,3)
-    scat = ax.scatter(skeleton[:,0], skeleton[:,1], skeleton[:,2])
+    skeleton = sequence[frame].reshape(-1, 3)
+    scat = ax.scatter(skeleton[:, 0], skeleton[:, 1], skeleton[:, 2])
     for edge in joints:
-        ax.plot((skeleton[edge[0], 0],skeleton[edge[1], 0]),
+        ax.plot((skeleton[edge[0], 0], skeleton[edge[1], 0]),
                 (skeleton[edge[0], 1], skeleton[edge[1], 1]),
                 (skeleton[edge[0], 2], skeleton[edge[1], 2]))
     # ani =   animation.FuncAnimation(fig, update_plot, frames=range(len(sequence)),
@@ -47,21 +50,23 @@ def visualize_skeleton(sequence, joints):
 
     plt.savefig("out.png")
 
+
 import matplotlib.pyplot as plt
 
 plt.rcParams["figure.figsize"] = [16, 9]
 
+
 def visualize_skeleton_openpose(joints, hand_left, hand_right, filename="fig.png"):
     joints_edges = [[15, 17], [15, 0], [16, 0], [16, 18], [1, 0], [1, 2],
-                  [3, 2], [3, 4], [1, 5], [5, 6], [6, 7], [1, 8], [8, 9], [9, 10],
-                  [10, 11], [11, 24], [23, 22], [8, 12], [13, 12], [13, 14], [14, 21], [19, 21],
-                  [19, 20]]
+                    [3, 2], [3, 4], [1, 5], [5, 6], [6, 7], [1, 8], [8, 9], [9, 10],
+                    [10, 11], [11, 24], [23, 22], [8, 12], [13, 12], [13, 14], [14, 21], [19, 21],
+                    [19, 20]]
 
     hands_edges = [[0, 1], [1, 2], [2, 3], [3, 4],
-                       [0, 5], [5, 6], [6, 7], [7, 8],
-                       [0, 9], [9, 10], [10, 11], [11, 12],
-                       [0, 13], [13, 14], [14, 15], [15, 16],
-                       [0, 17], [17, 18], [18, 19], [19, 20]]
+                   [0, 5], [5, 6], [6, 7], [7, 8],
+                   [0, 9], [9, 10], [10, 11], [11, 12],
+                   [0, 13], [13, 14], [14, 15], [15, 16],
+                   [0, 17], [17, 18], [18, 19], [19, 20]]
 
     import matplotlib.animation as animation
     fig = plt.figure()
@@ -70,14 +75,14 @@ def visualize_skeleton_openpose(joints, hand_left, hand_right, filename="fig.png
     # def update_plot(i, data, scat):
     #     scat.set_offsets(data[i].reshape(-1,2))
     #     return scat
-    joints[joints[:,2]<0.01] = np.nan
-    joints[np.isnan(joints[:,2])] = np.nan
+    joints[joints[:, 2] < 0.01] = np.nan
+    joints[np.isnan(joints[:, 2])] = np.nan
 
-    hand_right[hand_right[:,2]<0.01] = np.nan
-    hand_right[np.isnan(hand_right[:,2])] = np.nan
+    hand_right[hand_right[:, 2] < 0.01] = np.nan
+    hand_right[np.isnan(hand_right[:, 2])] = np.nan
 
-    hand_left[hand_left[:,2]<0.01] = np.nan
-    hand_left[np.isnan(hand_left[:,2])] = np.nan
+    hand_left[hand_left[:, 2] < 0.01] = np.nan
+    hand_left[np.isnan(hand_left[:, 2])] = np.nan
 
     # hand_right[hand_right<0.3] = 'nan'
     # hand_left[hand_left[:,2]<0.3] = 'nan'
@@ -95,7 +100,6 @@ def visualize_skeleton_openpose(joints, hand_left, hand_right, filename="fig.png
         ax.plot((joints[edge[0], 0], joints[edge[1], 0]),
                 (joints[edge[0], 1], joints[edge[1], 1]))
 
-
     joints = hand_left
     # joints[:,0] = 1-joints[:,0]
     scat = ax.scatter(joints[:, 0], joints[:, 1])
@@ -107,9 +111,9 @@ def visualize_skeleton_openpose(joints, hand_left, hand_right, filename="fig.png
     # ax.set_ylim(top=1, bottom=0)
     plt.gca().invert_yaxis()
 
-
     plt.savefig(filename)
     plt.close()
+
 
 def plot_pose(pose):
     """Plot the 3D pose showing the joint connections."""
@@ -161,8 +165,10 @@ def plot_pose(pose):
 
     return fig
 
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
 
@@ -182,38 +188,41 @@ class AverageMeter(object):
 def get_weighted_loss_weights(dataset, num_classes):
     print("Calculating sampler weights...")
     # labels_array = [x['emotion'] for x in dataset.data]
-    labels_array = dataset#.Y_body
+    labels_array = dataset  # .Y_body
 
     from sklearn.utils import class_weight
     import numpy as np
     class_weights = class_weight.compute_class_weight('balanced', np.unique(labels_array), labels_array)
-    assert(class_weights.size == num_classes)
+    assert (class_weights.size == num_classes)
     # class_weights = 1/class_weights
     print("Class Weights: ", class_weights)
     return class_weights
+
 
 # calculates the weights for doing balanced sampling
 def get_sampler_weights(dataset, num_classes):
     print("Calculating sampler weights...")
     # labels_array = [x['emotion'] for x in dataset.data]
-    labels_array = dataset#.Y_body
+    labels_array = dataset  # .Y_body
 
     from sklearn.utils import class_weight
     import numpy as np
     class_weights = class_weight.compute_class_weight('balanced', np.unique(labels_array), labels_array)
-    assert(class_weights.size == num_classes)
+    assert (class_weights.size == num_classes)
 
     sampler_weights = torch.zeros(len(labels_array))
-    i=0
+    i = 0
     for label in labels_array:
         sampler_weights[i] = class_weights[int(label)]
         # print(i)
-        i+=1
+        i += 1
 
     return sampler_weights
 
+
 import torch.nn as nn
 import torch.nn.functional as F
+
 
 class SequentialLoss(nn.Module):
     def __init__(self):
@@ -223,15 +232,14 @@ class SequentialLoss(nn.Module):
         total_loss = 0
         # print(output.size(),target.size())
         for batch_idx in range(output.size(0)):
-            weights = torch.arange(lengths[batch_idx]).float().cuda()/lengths[batch_idx].float()
+            weights = torch.arange(lengths[batch_idx]).float().cuda() / lengths[batch_idx].float()
             for sequence_idx in range(lengths[batch_idx]):
-                out = output[batch_idx,sequence_idx,:].unsqueeze(0)
+                out = output[batch_idx, sequence_idx, :].unsqueeze(0)
                 tar = target[batch_idx].unsqueeze(0)
                 # print(out.size(), tar.size())
                 # print(out,target)
-                total_loss += weights[sequence_idx] * F.cross_entropy(out,tar)
-        return total_loss/output.size(0)
-
+                total_loss += weights[sequence_idx] * F.cross_entropy(out, tar)
+        return total_loss / output.size(0)
 
 
 map_to_emo_family = {
@@ -249,14 +257,14 @@ map_to_emo_family = {
     11: 3
 }
 
+
 def load_checkpoint(checkpoint_file):
-	return torch.load(checkpoint_file)
+    return torch.load(checkpoint_file)
 
 
 def save_checkpoint(state, filename):
-	filename = 'checkpoints/%s'%filename
-	torch.save(state, filename)
-
+    filename = 'checkpoints/%s' % filename
+    torch.save(state, filename)
 
 
 class GroupCrossEntropyLoss(nn.Module):
@@ -265,12 +273,12 @@ class GroupCrossEntropyLoss(nn.Module):
 
     def forward(self, output, target):
         output1 = output.clone()
-        output1[:,0] = output[:,0]+output[:,1]+output[:,2]
-        output1[:,1] = output[:,3]+output[:,5]+output[:,7]
-        output1[:,2] = output[:,4]+output[:,6]+output[:,8]
-        output1[:,3] = output[:,9]+output[:,10]+output[:,11]
-        output1 = output[:,:4]
-        return F.cross_entropy(output1,target)
+        output1[:, 0] = output[:, 0] + output[:, 1] + output[:, 2]
+        output1[:, 1] = output[:, 3] + output[:, 5] + output[:, 7]
+        output1[:, 2] = output[:, 4] + output[:, 6] + output[:, 8]
+        output1[:, 3] = output[:, 9] + output[:, 10] + output[:, 11]
+        output1 = output[:, :4]
+        return F.cross_entropy(output1, target)
 
 
 def pad_sequence(sequences, batch_first=False, padding_value=0, max_len=100):
@@ -331,7 +339,6 @@ def pad_sequence(sequences, batch_first=False, padding_value=0, max_len=100):
             out_tensor[:length, i, ...] = tensor
 
     return out_tensor
-
 
 
 #
@@ -446,6 +453,7 @@ def pad_sequence(sequences, batch_first=False, padding_value=0, max_len=100):
 #         return output
 import itertools
 
+
 def plot_confusion_matrix(cm, classes,
                           normalize=False,
                           title='Confusion matrix',
@@ -479,7 +487,8 @@ def plot_confusion_matrix(cm, classes,
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
-    plt.savefig('%s.png'%filename)
+    plt.savefig('%s.png' % filename)
+
 
 def visualize_with_tsne(data, labels):
     from sklearn.manifold import TSNE
@@ -495,7 +504,6 @@ def visualize_with_tsne(data, labels):
 
     sns.lmplot(x='x', y='y', fit_reg=False, data=df, hue='label')
     plt.show()
-
 
 
 def calc_gradients(params):
@@ -517,6 +525,7 @@ def RepresentsInt(s):
     except ValueError:
         return False
 
+
 import errno
 import os
 
@@ -529,6 +538,7 @@ def mkdir_p(path):
             pass
         else:
             raise
+
 
 def random_search():
     import random
@@ -556,4 +566,3 @@ def random_search():
             "num_channels": num_channels, "kernel_size": kernel_size, "num_tcn_layers": num_tcn_layers,
             "spatial_net_features": spatial_net_features,
             "spatial_net_one_feature": spatial_net_one_feature}
-

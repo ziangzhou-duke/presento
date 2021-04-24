@@ -25,7 +25,8 @@ class LSTMSkeleton(nn.Module):
             nn.ReLU(True)
         )
 
-        self.lstm = nn.LSTM(args.num_input_lstm, args.hidden_size, batch_first=True, num_layers=args.num_layers, bidirectional=args.bidirectional, dropout=args.dropout)
+        self.lstm = nn.LSTM(args.num_input_lstm, args.hidden_size, batch_first=True, num_layers=args.num_layers,
+                            bidirectional=args.bidirectional, dropout=args.dropout)
 
         init_lstm(self.lstm)
 
@@ -35,7 +36,6 @@ class LSTMSkeleton(nn.Module):
         else:
             num_directions = 1
 
-
         confidences = features[:, :, :, 2]
         features_positions_x = features[:, :, :, 0].clone()
         features_positions_y = features[:, :, :, 1].clone()
@@ -44,7 +44,6 @@ class LSTMSkeleton(nn.Module):
         confidences = (confidences > t).float() * 1
         features_positions = torch.stack(
             (features_positions_x * confidences, features_positions_y * confidences), dim=3)
-
 
         features = features_positions.view(features_positions.size(0), features_positions.size(1), -1)
 
@@ -56,23 +55,21 @@ class LSTMSkeleton(nn.Module):
 
         packed = pack_padded_sequence(encoded_features, lengths, batch_first=True)
 
-        output, (hn, cn) = self.lstm(packed,(h0,c0))
-        output, _ = pad_packed_sequence(output,batch_first=True)
-
+        output, (hn, cn) = self.lstm(packed, (h0, c0))
+        output, _ = pad_packed_sequence(output, batch_first=True)
 
         if self.args.lstm_pooling == "sum":
-            output = torch.sum(output,dim=1)/lengths.unsqueeze(1).float()
+            output = torch.sum(output, dim=1) / lengths.unsqueeze(1).float()
         elif self.args.lstm_pooling == "max":
-            output,_ = torch.max(output,dim=1)
+            output, _ = torch.max(output, dim=1)
         elif self.args.lstm_pooling == "last":
             output = output[torch.arange(output.size(0)), lengths - 1, :]
         elif self.args.lstm_pooling == "sum+hidden":
-            output = torch.sum(output,dim=1)/lengths.unsqueeze(1).float()
-            hiddens = hn.permute(1,0,2).contiguous()
-            output = torch.cat((output,hiddens.view(hiddens.size(0),-1)),dim=1)
+            output = torch.sum(output, dim=1) / lengths.unsqueeze(1).float()
+            hiddens = hn.permute(1, 0, 2).contiguous()
+            output = torch.cat((output, hiddens.view(hiddens.size(0), -1)), dim=1)
 
         return output
-
 
 
 def init_weights(m):
@@ -88,15 +85,13 @@ class BodyFaceEmotionClassifier(nn.Module):
 
         total_features_size = 0
 
-
         if args.use_cnn_features:
             """ add features from cnn for face """
             total_features_size += 2048
 
-
         if args.add_body_dnn:
             """ use simple dnn for modeling the skeleton """
-            n = 42+42+50 # this is the number of openpose skeleton joints: 21 2D points for hands and 25 2D points for body
+            n = 42 + 42 + 50  # this is the number of openpose skeleton joints: 21 2D points for hands and 25 2D points for body
 
             self.static = nn.Sequential(
                 nn.Linear(n, args.first_layer_size),
@@ -123,18 +118,18 @@ class BodyFaceEmotionClassifier(nn.Module):
 
             if args.add_whole_body_branch:
                 self.classifier = nn.Sequential(
-                    nn.Linear(args.first_layer_size+2048, args.num_classes-1)
+                    nn.Linear(args.first_layer_size + 2048, args.num_classes - 1)
                 )
             else:
                 # if no whole body branch with feature fusion, then do a simple with score fusion
                 self.classifier = nn.Sequential(
-                    nn.Linear(2*args.num_classes, args.num_classes - 1)
+                    nn.Linear(2 * args.num_classes, args.num_classes - 1)
                 )
             if args.do_fusion:
 
                 if self.args.add_whole_body_branch:
                     self.classifier_deep = nn.Sequential(
-                        nn.Linear(2 * args.num_classes + args.num_classes-1, args.num_classes - 1)
+                        nn.Linear(2 * args.num_classes + args.num_classes - 1, args.num_classes - 1)
                     )
                 else:
                     # HMT-3a
@@ -151,7 +146,7 @@ class BodyFaceEmotionClassifier(nn.Module):
             self.classifier = nn.Sequential(
                 nn.Linear(total_features_size, args.num_classes),
             )
-            self.b = torch.Tensor([1,2,3,4,5,6,7,8,15,16,17,18]).cuda().long()
+            self.b = torch.Tensor([1, 2, 3, 4, 5, 6, 7, 8, 15, 16, 17, 18]).cuda().long()
 
     def forward(self, inp, get_features=False):
         face, body, hand_right, hand_left, length, facial_cnn_features = inp
@@ -171,39 +166,34 @@ class BodyFaceEmotionClassifier(nn.Module):
 
             # make all joints with threshold lower than 
             features_positions = torch.stack(
-                (features_positions_x*confidences, features_positions_y*confidences), dim=3)
+                (features_positions_x * confidences, features_positions_y * confidences), dim=3)
 
-
-            static_features = features_positions.view(features_positions.size(0), features_positions.size(1),-1)
+            static_features = features_positions.view(features_positions.size(0), features_positions.size(1), -1)
 
             static_features = self.static(static_features)
 
             # feats.append(torch.max(static_features,dim=1)/length.unsqueeze(1).float())
 
-            sum_ = torch.zeros(body.size(0),static_features.size(2)).float().cuda()
-
+            sum_ = torch.zeros(body.size(0), static_features.size(2)).float().cuda()
 
             if self.args.body_pooling == "max":
-                for i in range(0,body.size(0)):
-                    sum_[i] = torch.max(static_features[i,:length[i],:], dim=0)[0]
+                for i in range(0, body.size(0)):
+                    sum_[i] = torch.max(static_features[i, :length[i], :], dim=0)[0]
             elif self.args.body_pooling == "avg":
-                for i in range(0,body.size(0)):
-                    sum_[i] = torch.sum(static_features[i,:length[i],:], dim=0)/length[i].float()
-
+                for i in range(0, body.size(0)):
+                    sum_[i] = torch.sum(static_features[i, :length[i], :], dim=0) / length[i].float()
 
             feats.append(sum_)
 
             if self.args.split_branches:
-                out_body = self.classifier_body(self.bn_body(torch.sum(static_features,dim=1)/length.unsqueeze(1).float()))
-
+                out_body = self.classifier_body(
+                    self.bn_body(torch.sum(static_features, dim=1) / length.unsqueeze(1).float()))
 
         if self.args.use_cnn_features:
             if self.args.face_pooling == "max":
-                facial_cnn_features, _ = torch.max(facial_cnn_features,dim=1)
+                facial_cnn_features, _ = torch.max(facial_cnn_features, dim=1)
             elif self.args.face_pooling == "avg":
-                facial_cnn_features = torch.mean(facial_cnn_features,dim=1)
-
-
+                facial_cnn_features = torch.mean(facial_cnn_features, dim=1)
 
             if self.args.split_branches:
                 out_face = self.classifier_face(self.bn_face(facial_cnn_features))
@@ -219,20 +209,19 @@ class BodyFaceEmotionClassifier(nn.Module):
             if self.args.do_fusion:
                 if self.args.add_whole_body_branch:
                     out = self.classifier(features)
-                    out_deep = self.classifier_deep(torch.cat((out_body,out_face,out),dim=1))
+                    out_deep = self.classifier_deep(torch.cat((out_body, out_face, out), dim=1))
                 else:
                     out = None
-                    out_deep = self.classifier_deep(torch.cat((out_body,out_face),dim=1))
+                    out_deep = self.classifier_deep(torch.cat((out_body, out_face), dim=1))
 
                 return out, out_body, out_face, out_deep
             elif self.args.add_whole_body_branch:
                 out = self.classifier(features)
                 return out, out_body, out_face
             else:
-                out = self.classifier(torch.cat((out_body,out_face),dim=1))
+                out = self.classifier(torch.cat((out_body, out_face), dim=1))
                 return out, out_body, out_face
 
         else:
             out = self.classifier(self.bn2(features))
             return out
-
