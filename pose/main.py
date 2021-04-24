@@ -22,16 +22,11 @@ def parse_opts():
 
     # ========================= Usual Hyper Parameters ==========================
     parser.add_argument('--dropout', default=0.5, type=float)
-
-    parser.add_argument('--batch_size', default=-1, type=int)
-
+    parser.add_argument('--batch_size', default=64, type=int)
     parser.add_argument('--exp_name', default="test")
     parser.add_argument('--out_dir', default="exp")
-
     parser.add_argument('--epochs', default=100, type=int)
-
     parser.add_argument('--grad_clip', type=float, default=0.1)
-
     # ========================= Face Parameters ==========================
     parser.add_argument('--add_openface_features', action="store_true", dest="add_openface_features",
                         help="add gaze angle and pose from openface as extra body posture features")
@@ -47,7 +42,6 @@ def parse_opts():
 
     parser.add_argument('--num_classes', type=int, default=7)
     parser.add_argument('--num_total_iterations', type=int, default=10)
-    parser.add_argument('--num_splits', type=int, default=10)
 
     parser.add_argument('--add_body_dnn', action="store_true", dest="add_body_dnn",
                         help="use a dnn for modeling the skeleton")
@@ -75,7 +69,7 @@ def parse_opts():
 def main():
     args = parse_opts()
     b = EmotionRecognitionSystem(args)
-    b.run()
+    b.fit()
 
 
 if __name__ == '__main__':
