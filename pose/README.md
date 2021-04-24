@@ -1,87 +1,66 @@
-# POSE model
+*FROM https://github.com/filby89/body-face-emotion-recognition*
 
-This repo uses code from the github repo-https://github.com/michalfaber/tensorflow_Realtime_Multi-Person_Pose_Estimation.git
-The pose model estimation is used is the program to detect movement.
-Further Anxiety and confidence score is based on the irregular movemnet of the candidate. Further models include trcaking eye movement and voice modulation to predict the Anxiety-Confidence score.
-**Two machine learning models are used** to predict eye movement and predicts keypoinst on upper body. These data will be used to calculate the Anxiety/Confidence score.
-NOTE: We are using a mathematical aproach to get the score as we have not yet collected enough credible data to train a model to do it.
+# Fusing Body Posture With Facial Expressions for Joint Recognition of Affect in Child–Robot Interaction
 
-# Progress uptil Now
-Score predictor using movement is being implemented. For efficieny mobilenet model is being used
+PyTorch code for the
+paper [Fusing Body Posture With Facial Expressions for Joint Recognition of Affect in Child–Robot Interaction](https://ieeexplore.ieee.org/abstract/document/8769871)
+.
+
+You can find the preprint at [arXiv](https://arxiv.org/abs/1901.01805).
+
+### Preparation
+
+* Download the [BRED dataset](https://zenodo.org/record/3233060) and extract it inside the project.
+* Create a directory "saved_scores" to save the outputs in numpy format.
+
+### Training
+
+Train a model using only the skeleton (SEP):
+
+> python main.py --db babyrobot --epochs 200 --step_size 150 --add_body_dnn --num_classes 7 --num_total_iterations=1 --exp_name "BODY-ONLY" --optimizer sgd --weight_decay 1e-3 --lr 1e-1 --batch_size 12 --use_labels body
 
 
-# Pre-requisites
 
-You need to have tensorflow 2.0+ installed. And the dependencies listed in the requirments.txt
-[Download](https://www.dropbox.com/s/gif7s1qlie2xftd/best_pose_mobilenet_model.zip?dl=1) the model and copy the weights.best.mobilenet.h5 file to the master directory of this repo.
-* install [CUDNN](https://developer.nvidia.com/cudnn) and [CUDA](https://developer.nvidia.com/cuda-downloads)
+Train a model using only the CNN features (SEP):
 
-    If you use Anaconda, there is a simpler way. Just install the precompiled libs:
-```bash    
-    conda install -c anaconda cudatoolkit==10.0.130-0
+> python main.py --db babyrobot --epochs 200 --step_size 150 --use_cnn_features --num_classes 7 --num_total_iterations=1 --exp_name "FACE_ONLY" --optimizer sgd --weight_decay 1e-3 --lr 1e-1 --batch_size 12 --use_labels face
+
+
+
+Combine skeleton and CNN features (feature fusion - Joint-1L)
+
+> python main.py --db babyrobot --epochs 200 --step_size 150 --add_body_dnn --use_cnn_features --num_classes 7 --num_total_iterations=1 --exp_name "JOINT" --optimizer sgd --weight_decay 1e-3 --lr 1e-1 --batch_size 12
+
+
+Combine skeleton and CNN features (Hierarchical training - HMT-3A)
+
+> python main.py --db babyrobot --epochs 200 --step_size 150 --add_body_dnn --use_cnn_features --num_classes 7 --num_total_iterations=1 --optimizer sgd --weight_decay 1e-3 --lr 1e-1 --batch_size 12 --split_branches --do_fusion --exp_name "HMT-3a"
+
+
+Combine skeleton and CNN features (Hierarchical training - HMT-3B)
+
+> python main.py --db babyrobot --epochs 200 --step_size 150 --add_body_dnn --use_cnn_features --num_classes 7 --num_total_iterations=1 --optimizer sgd --weight_decay 1e-3 --lr 1e-1 --batch_size 12 --split_branches --add_whole_body_branch --exp_name "HMT-3b"
+
+
+Combine skeleton and CNN features (Hierarchical training - HMT-4) adding final fusion branch (HMT-4)
+
+> python main.py --db babyrobot --epochs 200 --step_size 150 --add_body_dnn --use_cnn_features --num_classes 7 --num_total_iterations=1 --optimizer sgd --weight_decay 1e-3 --lr 1e-1 --batch_size 12 --split_branches --do_fusion --add_whole_body_branch --exp_name "ΗΜΤ-4"
+
+## Citation
+
+If you use this code for your research, consider citing our paper.
+
+```
+@ARTICLE{8769871,  
+	author={P. P. {Filntisis} and N. {Efthymiou} and P. {Koutras} and G. {Potamianos} and P. {Maragos}},  
+	journal={IEEE Robotics and Automation Letters},   
+	title={Fusing Body Posture With Facial Expressions for Joint Recognition of Affect in Child–Robot Interaction},   year={2019},  
+	volume={4},  
+	number={4},  
+	pages={4011-4018},  
+	doi={10.1109/LRA.2019.2930434}}
 ```
 
-## How to install (with tensorflow-gpu)
+### Contact
 
-
-**Virtualenv**
-
-```bash
-pip install virtualenv
-virtualenv venv
-source venv/bin/activate
-
-pip install -r requirements.txt
-# ...or
-pip install -r requirements_all.txt # completely frozen environment with all dependent libraries
-```
-
-**Anaconda**
-
-```bash
-conda create --name tf_pose_estimation_env
-conda activate tf_pose_estimation_env
-
-bash requirements_conda.txt
-```
-Note: These instructions are also available in the originl repo from which these models and code was borrowed and further trained on.
-# Usage
-
-**To find required keypoints on a image**
-
-In your python console or program, move to the Anxiety_Detection directory and 
-```bash
-import pose_model
-import cv2
-img = cv2.imread("Imagepath")
-keypoints_required = pose_model.get_points(img)
-```
-**Score predictor**
-
-Run the score.py and enter the path of the video when prompted. 
-Output is a list of scores based on contonuos movements such as tapping or shaking of elbows. Futher improvements are due.
-
-
-# Score prediction algorithm:
-
-
-**Pose based score estimation:**
-
-1.  Shoulders : 
-                   Almost no movement to - 2           0.7-0.9 (Stiff shoulders =  reduced 
-                     times a minute,                                             response)
-                     
-2. Elbows :
-                    
-                          Currently Indeterminate. No Co-relation
-
-3. Wrist :
-                  Constant movement (tapping)           0.6 - 0.9
-                   >100                                                  0.9
-                   >80 and <100                                    0.8
-                   >40 and <80                                      0.4 - 0.7
-                   <40                                                    0.2- 0.4
-
-
-
-(*note- the distributions are not made even intentionally)
+For questions feel free to open an issue.
