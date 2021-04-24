@@ -7,10 +7,3 @@ scikit-learn
 scipy
 pandas
 scikit-image
-dlib
-txaio
-autobahn
-twisted
-pyopenssl
-imagehash
-service_identity
