@@ -25,7 +25,8 @@ def parse_opts():
 
     parser.add_argument('--batch_size', default=-1, type=int)
 
-    parser.add_argument('--exp_name', default="testt")
+    parser.add_argument('--exp_name', default="test")
+    parser.add_argument('--out_dir', default="exp")
 
     parser.add_argument('--epochs', default=100, type=int)
 

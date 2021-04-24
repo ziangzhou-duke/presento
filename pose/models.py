@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torchvision.models as models
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 
@@ -16,7 +15,7 @@ def init_lstm(l):
 
 class LSTMSkeleton(nn.Module):
     def __init__(self, num_input, args=None):
-        super(MiniLSTM, self).__init__()
+        super().__init__()
         self.args = args
 
         self.encoder = nn.Sequential(
@@ -40,7 +39,7 @@ class LSTMSkeleton(nn.Module):
         features_positions_x = features[:, :, :, 0].clone()
         features_positions_y = features[:, :, :, 1].clone()
 
-        t = torch.Tensor([self.args.confidence_threshold]).cuda()  # threshold
+        t = torch.tensor([self.args.confidence_threshold]).cuda()  # threshold
         confidences = (confidences > t).float() * 1
         features_positions = torch.stack(
             (features_positions_x * confidences, features_positions_y * confidences), dim=3)
@@ -91,7 +90,8 @@ class BodyFaceEmotionClassifier(nn.Module):
 
         if args.add_body_dnn:
             """ use simple dnn for modeling the skeleton """
-            n = 42 + 42 + 50  # this is the number of openpose skeleton joints: 21 2D points for hands and 25 2D points for body
+            # this is the number of openpose skeleton joints: 21 2D points for hands and 25 2D points for body
+            n = 42 + 42 + 50
 
             self.static = nn.Sequential(
                 nn.Linear(n, args.first_layer_size),
@@ -146,7 +146,7 @@ class BodyFaceEmotionClassifier(nn.Module):
             self.classifier = nn.Sequential(
                 nn.Linear(total_features_size, args.num_classes),
             )
-            self.b = torch.Tensor([1, 2, 3, 4, 5, 6, 7, 8, 15, 16, 17, 18]).cuda().long()
+            self.b = torch.tensor([1, 2, 3, 4, 5, 6, 7, 8, 15, 16, 17, 18]).cuda().long()
 
     def forward(self, inp, get_features=False):
         face, body, hand_right, hand_left, length, facial_cnn_features = inp
@@ -161,7 +161,7 @@ class BodyFaceEmotionClassifier(nn.Module):
             features_positions_y = features[:, :, :, 1].clone()
 
             confidences = features[:, :, :, 2].clone()
-            t = torch.Tensor([self.args.confidence_threshold]).cuda()  # threshold for confidence of joints
+            t = torch.tensor([self.args.confidence_threshold]).cuda()  # threshold for confidence of joints
             confidences = (confidences > t).float() * 1
 
             # make all joints with threshold lower than 

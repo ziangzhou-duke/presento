@@ -280,7 +280,7 @@ class BodyFaceDataset(data.Dataset):
         if self.args.use_cnn_features:
             features = self.features[index]
         else:
-            features = torch.Tensor(1)
+            features = torch.tensor(1)
 
         label_face = self.Y_face[index]
         label_body = self.Y_body[index]

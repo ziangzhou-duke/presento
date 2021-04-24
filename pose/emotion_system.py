@@ -8,8 +8,9 @@ from models import *
 
 class EmotionRecognitionSystem:
     def __init__(self, args):
-        print(args)
+        print(f'================\nargs:\n{args}\n================')
         self.args = args
+        os.makedirs(args.out_dir, exist_ok=True)
 
     def run(self):
         args = self.args
@@ -49,9 +50,6 @@ class EmotionRecognitionSystem:
     def get_scaler(self):
         scaler = {}
         feats = ["bodies", "faces", "hands_right", "hands_left", ]
-
-        acc1 = 0
-        acc2 = 0
 
         for x in feats:
             all_data = np.vstack(getattr(self.train_dataset, x))
@@ -123,7 +121,7 @@ class EmotionRecognitionSystem:
 
             start = time.time()
 
-            val_top_all, val_top_body, val_top_face, p, r, f = self.fit(self.model)
+            val_top_all, val_top_body, val_top_face, p, r, f = self.fit()
 
             end = time.time()
 
@@ -143,20 +141,24 @@ class EmotionRecognitionSystem:
                 f'F-Score: {np.mean(cross_val_f):.3f} Time: {end - start:.3f}'
             )
 
-        return np.mean(cross_val_accuracy_meter_top_all), np.mean(cross_val_accuracy_meter_top_body), np.mean(
-            cross_val_accuracy_meter_top_face), \
-               np.mean(cross_val_p), np.mean(cross_val_r), np.mean(cross_val_f)
+        return (
+            np.mean(cross_val_accuracy_meter_top_all),
+            np.mean(cross_val_accuracy_meter_top_body), np.mean(cross_val_accuracy_meter_top_face),
+            np.mean(cross_val_p), np.mean(cross_val_r), np.mean(cross_val_f)
+        )
 
-    def fit(self, model):
+    def fit(self):
         if self.args.weighted_loss:
             if self.args.split_branches:
                 self.criterion_both = nn.CrossEntropyLoss().cuda()
                 self.criterion_face = nn.CrossEntropyLoss().cuda()
                 self.criterion_body = nn.CrossEntropyLoss(
-                    weight=torch.FloatTensor(get_weighted_loss_weights(self.train_dataset.Y_body, 7))).cuda()
+                    weight=torch.tensor(get_weighted_loss_weights(self.train_dataset.Y_body, 7), dtype=torch.float32)
+                ).cuda()
             elif self.args.use_labels == "body":
                 self.criterion = nn.CrossEntropyLoss(
-                    weight=torch.FloatTensor(get_weighted_loss_weights(self.train_dataset.Y_body, 7))).cuda()
+                    weight=torch.tensor(get_weighted_loss_weights(self.train_dataset.Y_body, 7), dtype=torch.float32)
+                ).cuda()
             else:
                 self.criterion = nn.CrossEntropyLoss().cuda()
         else:
@@ -170,18 +172,21 @@ class EmotionRecognitionSystem:
                 self.criterion = nn.CrossEntropyLoss().cuda()
 
         if self.args.optimizer == "Adam":
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.lr,
-                                              weight_decay=self.args.weight_decay)
+            self.optimizer = torch.optim.Adam(
+                self.model.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay
+            )
         else:
-            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.args.lr,
-                                             weight_decay=self.args.weight_decay, momentum=self.args.momentum)
+            self.optimizer = torch.optim.SGD(
+                self.model.parameters(), lr=self.args.lr, weight_decay=self.args.weight_decay,
+                momentum=self.args.momentum
+            )
 
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=self.args.step_size, gamma=0.1)
 
-        best_acc = 0
-
         self.mat = np.empty(0)
 
+        val_top_all, val_top_body, val_top_face, val_loss, p, r, f = 0., 0., 0., 0., 0., 0., 0.
+        lr = -1.0
         for self.current_epoch in range(0, self.args.epochs):
             train_acc, train_loss = self.train_epoch()
 
@@ -196,7 +201,8 @@ class EmotionRecognitionSystem:
                     f'[Epoch: {self.current_epoch:3d}/{self.args.epochs:3d}] Training Loss: {train_loss:.3f}, '
                     f'Validation Loss: {val_loss:.3f}, Training Acc: {train_acc:.3f}, Validation Acc: '
                     f'{val_top_all:.3f}, Validation Acc Body: {val_top_body:.3f}, Validation Acc Face: '
-                    f'{val_top_face:.3f}, Learning Rate:{lr:.8f}')
+                    f'{val_top_face:.3f}, Learning Rate:{lr:.8f}'
+                )
 
         return val_top_all, val_top_body, val_top_face, p, r, f
 
@@ -206,18 +212,12 @@ class EmotionRecognitionSystem:
         accuracy_meter_top_all = AverageMeter()
         loss_meter = AverageMeter()
 
-        all_outs_body = []
-        all_outs = []
-        all_outs_face = []
-        all_y = []
-        all_y_face = []
-        all_y_body = []
-
         for i, batch in enumerate(self.dataloader_train):
-            facial_cnn_features, face, body, hand_right, hand_left, length, y, y_face, y_body = \
-                batch['facial_cnn_features'].cuda(), batch[
-                    'face'].cuda(), batch['body'].cuda(), batch['hand_right'].cuda(), batch['hand_left'].cuda(), batch[
-                    'length'].cuda(), batch['label'].cuda(), batch['label_face'].cuda(), batch['label_body'].cuda()
+            facial_cnn_features, face, body, hand_right, hand_left, length, y, y_face, y_body = (
+                batch['facial_cnn_features'].cuda(), batch['face'].cuda(), batch['body'].cuda(),
+                batch['hand_right'].cuda(), batch['hand_left'].cuda(), batch['length'].cuda(), batch['label'].cuda(),
+                batch['label_face'].cuda(), batch['label_body'].cuda()
+            )
 
             self.optimizer.zero_grad()
 
@@ -304,11 +304,11 @@ class EmotionRecognitionSystem:
         with torch.no_grad():
             self.model.eval()
             for i, batch in enumerate(self.dataloader_test):
-                facial_cnn_features, face, body, hand_right, hand_left, length, y, y_face, y_body = \
-                    batch['facial_cnn_features'].cuda(), batch[
-                        'face'].cuda(), batch['body'].cuda(), batch['hand_right'].cuda(), batch['hand_left'].cuda(), \
-                    batch[
-                        'length'].cuda(), batch['label'].cuda(), batch['label_face'].cuda(), batch['label_body'].cuda()
+                facial_cnn_features, face, body, hand_right, hand_left, length, y, y_face, y_body = (
+                    batch['facial_cnn_features'].cuda(), batch['face'].cuda(), batch['body'].cuda(),
+                    batch['hand_right'].cuda(), batch['hand_left'].cuda(), batch['length'].cuda(),
+                    batch['label'].cuda(), batch['label_face'].cuda(), batch['label_body'].cuda()
+                )
 
                 if self.args.split_branches:
 
@@ -370,13 +370,15 @@ class EmotionRecognitionSystem:
                     y = y.cpu()
 
                     np.save(
-                        f"saved_scores/{self.args.exp_name}_out_{self.current_split}_{self.current_iteration:d}",
+                        f"{self.args.out_dir}/{self.args.exp_name}_out_{self.current_split}_{self.current_iteration:d}",
                         out
                     )
-                    np.save(f"saved_scores/{self.args.exp_name}_y_{self.current_split}_{self.current_iteration:d}", y)
+                    np.save(
+                        f"{self.args.out_dir}/{self.args.exp_name}_y_{self.current_split}_{self.current_iteration:d}",
+                        y)
 
                     np.save(
-                        f"saved_scores/{self.args.exp_name}_paths_{self.current_split}_{self.current_iteration:d}",
+                        f"{self.args.out_dir}/{self.args.exp_name}_paths_{self.current_split}_{self.current_iteration:d}",
                         np.array(batch['paths']))
 
                     if self.args.split_branches:
@@ -385,23 +387,23 @@ class EmotionRecognitionSystem:
                         y_face = y_face.cpu()
                         y_body = y_body.cpu()
                         np.save(
-                            f"saved_scores/{self.args.exp_name}_out_face_{self.current_split}_{self.current_iteration:d}",
+                            f"{self.args.out_dir}/{self.args.exp_name}_out_face_{self.current_split}_{self.current_iteration:d}",
                             out_face)
                         np.save(
-                            f"saved_scores/{self.args.exp_name}_y_face_{self.current_split}_{self.current_iteration:d}",
+                            f"{self.args.out_dir}/{self.args.exp_name}_y_face_{self.current_split}_{self.current_iteration:d}",
                             y_face)
 
                         np.save(
-                            f"saved_scores/{self.args.exp_name}_out_body_{self.current_split}_{self.current_iteration:d}",
+                            f"{self.args.out_dir}/{self.args.exp_name}_out_body_{self.current_split}_{self.current_iteration:d}",
                             out_body)
                         np.save(
-                            f"saved_scores/{self.args.exp_name}_y_body_{self.current_split}_{self.current_iteration:d}",
+                            f"{self.args.out_dir}/{self.args.exp_name}_y_body_{self.current_split}_{self.current_iteration:d}",
                             y_body)
 
-                    if (self.args.do_fusion):
+                    if self.args.do_fusion:
                         out_fusion = out_fusion.cpu()
                         np.save(
-                            f"saved_scores/{self.args.exp_name}_out_fusion_{self.current_split}_{self.current_iteration:d}",
+                            f"{self.args.out_dir}/{self.args.exp_name}_out_fusion_{self.current_split}_{self.current_iteration:d}",
                             out_fusion)
 
                 if get_confusion_matrix and self.current_epoch == self.args.epochs - 1:
