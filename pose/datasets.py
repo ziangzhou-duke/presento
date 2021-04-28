@@ -45,23 +45,24 @@ def get_babyrobot_annotations():
     subj_idx = 0
     with open("BRED_dataset/annotations.csv") as data_file:
         for x in data_file.readlines()[1:]:
+            tokens = x.split(",")
             v = {
-                "path": x.split(",")[0].split(".")[0],
-                "subject": x.split(",")[0].split("/")[2],
-                "emotion": babyrobot_mapper[x.split(",")[1].strip()],  # map emotion to number
-                "ann_1_does_emotion_body": x.split(",")[2].strip(),
-                "ann_1_does_emotion_face": x.split(",")[3].strip(),
-                "ann_2_does_emotion_body": x.split(",")[4].strip(),
-                "ann_2_does_emotion_face": x.split(",")[5].strip(),
-                "ann_3_does_emotion_body": x.split(",")[6].strip(),
-                "ann_3_does_emotion_face": x.split(",")[7].strip(),
+                "path": tokens[0].split(".")[0],
+                "subject": tokens[0].split("/")[2],
+                "emotion": babyrobot_mapper[tokens[1].strip()],  # map emotion to number
+                "ann_1_does_emotion_body": tokens[2].strip(),
+                "ann_1_does_emotion_face": tokens[3].strip(),
+                "ann_2_does_emotion_body": tokens[4].strip(),
+                "ann_2_does_emotion_face": tokens[5].strip(),
+                "ann_3_does_emotion_body": tokens[6].strip(),
+                "ann_3_does_emotion_face": tokens[7].strip(),
             }
 
             # take as ground truth the majority
-            l = [v['ann_1_does_emotion_face'], v['ann_2_does_emotion_face'], v['ann_3_does_emotion_face']]
-            v['does_emotion_face'] = max(set(l), key=l.count)
-            l = [v['ann_1_does_emotion_body'], v['ann_2_does_emotion_body'], v['ann_3_does_emotion_body']]
-            v['does_emotion_body'] = max(set(l), key=l.count)
+            does_emotion = [v['ann_1_does_emotion_face'], v['ann_2_does_emotion_face'], v['ann_3_does_emotion_face']]
+            v['does_emotion_face'] = max(set(does_emotion), key=does_emotion.count)
+            does_emotion = [v['ann_1_does_emotion_body'], v['ann_2_does_emotion_body'], v['ann_3_does_emotion_body']]
+            v['does_emotion_body'] = max(set(does_emotion), key=does_emotion.count)
 
             data.append(v)
 
@@ -76,30 +77,37 @@ def get_babyrobot_annotations():
 
 
 def get_babyrobot_data():
-    data, subject_to_number = get_babyrobot_annotations()
+    annotations, subject_to_number = get_babyrobot_annotations()
 
-    faces, bodies, lengths, hands_right, hands_left, Y, Y_face, Y_body, raw_face_paths = [], [], [], [], [], [], [], [], []
+    (
+        faces,
+        bodies,
+        lengths,
+        hands_right,
+        hands_left,
+        Y,
+        Y_face,
+        Y_body,
+        raw_face_paths
+    ) = [], [], [], [], [], [], [], [], []
     paths = []
-    flow_bodies, flow_hands_right, flow_hands_left = [], [], []
-    bodies_side, hands_right_side, hands_left_side = [], [], []
 
     groups = []
 
-    for video in data:
+    for video in annotations:
         label = video['emotion']
 
         # the hierarchical body label is equal to the whole body emotion label if the child did the emotion with the
         # body or neutral otherwise
-        label_body = label if video['does_emotion_body'] == "yes" else 6
+        label_body = label if video['does_emotion_body'] == "yes" else babyrobot_mapper['Neutral']
         # the hierarchical face label is equal to the whole body emotion label if the child did the emotion with the
         # face or neutral otherwise
-        label_face = label if video['does_emotion_face'] == "yes" else 6
+        label_face = label if video['does_emotion_face'] == "yes" else babyrobot_mapper['Neutral']
 
         groups.append(subject_to_number[video['subject']])
 
         # ========================= Load OpenFace Features ==========================
-
-        name = video['path'].split("/")[-1]
+        # name = video['path'].split("/")[-1]
         csv = os.path.join(video['path'], "openface_output.csv")  # path of csv openface file
 
         seq = pd.read_csv(csv, delimiter=",")
@@ -107,7 +115,6 @@ def get_babyrobot_data():
         seq = seq.values.astype(np.float32)
 
         # ========================= Load OpenPose Features ==========================
-
         json_dir = os.path.join(video['path'] + "/openpose_output/json")
 
         if not os.path.exists(json_dir):
@@ -116,8 +123,11 @@ def get_babyrobot_data():
 
         json_list = sorted(os.listdir(json_dir))
 
-        keypoints_array, hand_left_keypoints_array, hand_right_keypoints_array = get_keypoints_from_json_list(
-            json_list, json_dir, video['subject'], video['emotion'], visualize=False)
+        (
+            keypoints_array,
+            hand_left_keypoints_array,
+            hand_right_keypoints_array
+        ) = get_keypoints_from_json_list(json_list, json_dir)
 
         keypoints_array = np.stack(keypoints_array).astype(np.float32)
         hand_right_keypoints_array = np.stack(hand_right_keypoints_array).astype(np.float32)
@@ -136,13 +146,11 @@ def get_babyrobot_data():
     return faces, bodies, hands_right, hands_left, lengths, Y, Y_face, Y_body, paths, groups
 
 
-def get_keypoints_from_json_list(json_list, json_dir, subject=None, emotion=None, visualize=False):
-    global k1, k2
+def get_keypoints_from_json_list(json_list, json_dir):
+    """
+    https://cmu-perceptual-computing-lab.github.io/openpose/web/html/doc/md_doc_02_output.html#autotoc_md33
+    """
     keypoints_array, hand_left_keypoints_array, hand_right_keypoints_array = [], [], []
-
-    is_first = True
-
-    visualization_counter = 1
 
     for json_file in json_list:
         if not json_file.endswith(".json"):
@@ -153,26 +161,21 @@ def get_keypoints_from_json_list(json_list, json_dir, subject=None, emotion=None
             json_data = json.load(f)
 
         # ========================= Load OpenPose Features ==========================
-
-        if len(json_data['people']) == 0:
+        if len(json_data['people']) == 0:  # no person found in current frame
             keypoints = np.zeros(75, dtype=np.float32)
             hand_left_keypoints = np.zeros(63, dtype=np.float32)
             hand_right_keypoints = np.zeros(63, dtype=np.float32)
-        else:
+        else:  # use the first person
             keypoints = np.asarray(json_data['people'][0]['pose_keypoints_2d'], dtype=np.float32)
             hand_left_keypoints = np.asarray(json_data['people'][0]['hand_left_keypoints_2d'], dtype=np.float32)
             hand_right_keypoints = np.asarray(json_data['people'][0]['hand_right_keypoints_2d'], dtype=np.float32)
 
-        keypoints = np.reshape(keypoints, (-1, 3))  # reshape to num_points x dimension
-        hand_left_keypoints = np.reshape(hand_left_keypoints, (-1, 3))  # reshape to num_points x dimension
-        hand_right_keypoints = np.reshape(hand_right_keypoints, (-1, 3))  # reshape to num_points x dimension
+        keypoints = np.reshape(keypoints, (-1, 3))  # reshape to (num_points * dimension,)
+        hand_left_keypoints = np.reshape(hand_left_keypoints, (-1, 3))  # reshape to (num_points * dimension,)
+        hand_right_keypoints = np.reshape(hand_right_keypoints, (-1, 3))  # reshape to (num_points * dimension,)
 
         # ========================= Spatial Normalization ==========================
-        if visualize:
-            visualize_skeleton_openpose(keypoints, hand_left_keypoints, hand_right_keypoints,
-                                        filename="figs/%04d.jpg" % visualization_counter)
-            visualization_counter += 1
-
+        # TODO: extract this into a function, and use it on openpose output
         normalize_point_x = keypoints[8, 0]
         normalize_point_y = keypoints[8, 1]
 
@@ -188,11 +191,6 @@ def get_keypoints_from_json_list(json_list, json_dir, subject=None, emotion=None
         keypoints_array.append(np.reshape(keypoints, (-1)))
         hand_left_keypoints_array.append(np.reshape(hand_left_keypoints, (-1)))
         hand_right_keypoints_array.append(np.reshape(hand_right_keypoints, (-1)))
-
-    if visualize:
-        os.system("ffmpeg -framerate 30 -i figs_tmp/%%04d.jpg -c:v libx264 -pix_fmt yuv420p figs_tmp/%s_%s.mp4" % (
-            subject, emotion))
-        os.system("find figs_tmp/ -maxdepth 1 -type f -iname \*.jpg -delete")
 
     return keypoints_array, hand_left_keypoints_array, hand_right_keypoints_array
 
@@ -221,7 +219,7 @@ class BodyFaceDataset(data.Dataset):
                 self.faces, self.bodies, self.hands_right, self.hands_left,
                 self.lengths, self.Y, self.Y_face,
                 self.Y_body, self.paths, self.groups
-            ) = get_babyrobot_data(subjects=subjects)
+            ) = get_babyrobot_data()
 
         self.lengths = []
         for index in range(len(self.bodies)):
