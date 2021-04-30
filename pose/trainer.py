@@ -1,10 +1,21 @@
+import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
+from typing import List
 import torch.utils.data as data
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 from tqdm import trange
-from datasets import *
-from models import *
+from pose.datasets import *
+from pose.models import *
+from dataclasses import dataclass
+
+
+@dataclass
+class TrainHistory:
+    acc: float
+    body_acc: float
+    face_acc: float
+    loss: float
 
 
 class Trainer:
@@ -15,6 +26,7 @@ class Trainer:
 
         self.init_datasets()
         self.current_epoch = 0
+        self.history: List[TrainHistory] = []
 
     def get_scaler(self):
         scaler = {}
@@ -35,20 +47,13 @@ class Trainer:
         # assert len(bodies) == len(faces) == len(hands_right) == len(hands_left) == len(Y) == len(Y_face)
 
         indices = list(range(len(bodies)))
-        train_idx, test_idx = train_test_split(indices, test_size=0.2)
+        train_idx, test_idx = train_test_split(indices, test_size=0.3)
 
         self.train_dataset = BodyFaceDataset(data=data, indices=train_idx, phase="train", args=self.args)
         self.test_dataset = BodyFaceDataset(data=data, indices=test_idx, phase="val", args=self.args)
 
         print(f"train samples: {len(self.train_dataset):d}")
-        # print(np.bincount(self.train_dataset.Y))
-        # print(np.bincount(self.train_dataset.Y_face))
-        # print(np.bincount(self.train_dataset.Y_body))
-
         print(f"test samples: {len(self.test_dataset):d}")
-        # print(np.bincount(self.test_dataset.Y))
-        # print(np.bincount(self.test_dataset.Y_face))
-        # print(np.bincount(self.test_dataset.Y_body))
 
         scaler = self.get_scaler()
 
@@ -72,6 +77,28 @@ class Trainer:
         self.model = BodyFaceEmotionClassifier(self.args).cuda()
 
         self._fit()
+        self.plot_history()
+
+    def plot_history(self):
+        plt.close('all')
+
+        acc = []
+        body_acc = []
+        face_acc = []
+        loss = []
+        for h in self.history:
+            acc.append(h.acc)
+            body_acc.append(h.body_acc)
+            face_acc.append(h.face_acc)
+            loss.append(h.loss)
+
+        plt.plot(acc, label='Overall accuracy')
+        plt.plot(body_acc, label='Body accuracy')
+        plt.plot(face_acc, label='Face accuracy')
+        plt.plot(loss, label='Overall loss')
+        plt.legend()
+        plt.savefig('history.png')
+        plt.close('all')
 
     def _fit(self):
         if self.args.weighted_loss:
@@ -119,6 +146,8 @@ class Trainer:
 
             val_top_all, val_top_body, val_top_face, p, r, f = self.eval()
 
+            self.history.append(TrainHistory(val_top_all, val_top_body, val_top_face, train_loss))
+
             t.set_postfix(
                 epoch=self.current_epoch, trian_loss=train_loss, train_acc=train_acc,
                 val_acc=val_top_all, val_body_acc=val_top_body, val_face_acc=val_top_face,
@@ -146,22 +175,14 @@ class Trainer:
                     out, out_body, out_face, out_fusion = self.model.forward(
                         (face, body, hand_right, hand_left, length, facial_cnn_features))
 
-                    loss = 0
-
                     loss_fusion = self.criterion_both(out_fusion, y)
-                    loss += loss_fusion
+                    loss_body = self.criterion_body(out_body, y_body)
+                    loss_face = self.criterion_face(out_face, y_face)
 
+                    loss = loss_body + loss_face + loss_fusion
                     if self.args.add_whole_body_branch:
                         loss_total = self.criterion_both(out, y)
                         loss += loss_total
-
-                    loss_body = self.criterion_body(out_body, y_body)
-                    loss += loss_body
-
-                    loss_face = self.criterion_face(out_face, y_face)
-                    loss += loss_face
-
-                    # loss = loss_body + loss_face + loss_fusion
 
                     loss.backward()
                 else:
@@ -278,7 +299,7 @@ class Trainer:
 
                     accs = accuracy(out, y, topk=(1,))
 
-                    """ change average to the desired (macro for balanced) """
+                    """change average to the desired (macro for balanced)"""
                     p, r, f, s = precision_recall_fscore_support(
                         y.cpu(), out.detach().cpu().argmax(dim=1), average="macro"
                     )
