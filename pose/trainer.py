@@ -92,10 +92,13 @@ class Trainer:
             face_acc.append(h.face_acc)
             loss.append(h.loss)
 
+        plt.figure(figsize=(8, 6))
         plt.plot(acc, label='Overall accuracy')
         plt.plot(body_acc, label='Body accuracy')
         plt.plot(face_acc, label='Face accuracy')
         plt.plot(loss, label='Overall loss')
+        plt.xlabel("epochs")
+        plt.ylabel("Accuracy or loss")
         plt.legend()
         plt.savefig('history.png')
         plt.close('all')
