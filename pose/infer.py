@@ -9,6 +9,7 @@ import torch
 from pose.extract_skeleton import SkeletonExtractor
 from pose.config import NUM_FRAMES_PER_SEGMENT
 from pose.models import BodyFaceEmotionClassifier
+from pose.utils import visualize_skeleton_openpose
 from pose.datasets import BodyFaceDataset, normalize_skeleton
 from torch.utils.data import DataLoader
 
@@ -34,8 +35,6 @@ def get_first_person(image: np.ndarray):
 
 
 def infer_emotion(model: BodyFaceEmotionClassifier, poses: np.ndarray, left_hands: np.ndarray, right_hands: np.ndarray):
-    model.eval()
-
     n = left_hands.shape[0]
     dataset = BodyFaceDataset(
         [0], np.expand_dims(poses, 0), np.expand_dims(left_hands, 0), np.expand_dims(right_hands, 0), [n],
@@ -53,12 +52,14 @@ def infer_emotion(model: BodyFaceEmotionClassifier, poses: np.ndarray, left_hand
             batch['body'].cuda(), batch['hand_right'].cuda(), batch['hand_left'].cuda(), torch.tensor([n]).cuda()
         )
         out = model((body, hand_right, hand_left, length))
+        print(out)
         return np.argmax(out.cpu().detach().numpy(), -1)
 
 
 def main():
     args = parse_opts()
     model = torch.load(args.model_path).cuda()
+    model.eval()
 
     vidcap = cv2.VideoCapture(args.input)
 
@@ -75,16 +76,21 @@ def main():
         left_hands.append(left_hand.ravel())
         right_hands.append(right_hand.ravel())
 
-        if count >= NUM_FRAMES_PER_SEGMENT:
-            print(infer_emotion(
-                model, np.vstack(poses), np.vstack(left_hands), np.vstack(right_hands)
-            ))
-            poses = []
-            left_hands = []
-            right_hands = []
+        # if count >= NUM_FRAMES_PER_SEGMENT:
+        #     print(infer_emotion(
+        #         model, np.vstack(poses), np.vstack(left_hands), np.vstack(right_hands)
+        #     ))
+        #     poses = []
+        #     left_hands = []
+        #     right_hands = []
 
         success, image = vidcap.read()
         count += 1
+
+    print(infer_emotion(
+        model, np.vstack(poses), np.vstack(left_hands), np.vstack(right_hands)
+    ))
+    visualize_skeleton_openpose(poses[0].reshape(-1, 3), left_hands[0].reshape(-1, 3), right_hands[1].reshape(-1, 3))
 
 
 if __name__ == '__main__':

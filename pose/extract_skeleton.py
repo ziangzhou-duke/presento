@@ -8,6 +8,7 @@ class SkeletonExtractor:
         params["model_folder"] = openpose_model_folder
         # params["face"] = True
         params["hand"] = True
+        params['keypoint_scale'] = 3  # scale to [0, 1]
         params["num_gpu"] = 1
 
         # starting OpenPose

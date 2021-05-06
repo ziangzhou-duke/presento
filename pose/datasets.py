@@ -202,6 +202,9 @@ def normalize_skeleton(poses, left_hands, right_hands):
     right_hands[:, 0] = right_hands[:, 0] - right_hands[0, 0]
     right_hands[:, 1] = right_hands[:, 1] - right_hands[0, 1]
 
+    # from pose.utils import visualize_skeleton_openpose
+    # visualize_skeleton_openpose(poses, left_hands, right_hands)
+
     return poses, left_hands, right_hands
 
 
