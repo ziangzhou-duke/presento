@@ -2,7 +2,7 @@ import json
 import os
 import torch
 import numpy as np
-from torch.nn.utils.rnn import pad_sequence
+from pose.utils import pad_sequence
 import torch.utils.data as data
 import pandas as pd
 
@@ -266,26 +266,16 @@ class BodyFaceDataset(data.Dataset):
         body = self.bodies[index]
         hand_right = self.hands_right[index]
         hand_left = self.hands_left[index]
-        face = self.faces[index]
         length = self.lengths[index]
 
-        if self.args.use_cnn_features:
-            features = self.features[index]
-        else:
-            features = torch.tensor(1)
-
-        label_face = self.Y_face[index]
         label_body = self.Y_body[index]
 
         return {
-            "face": face,
             "body": body,
             "hand_left": hand_left,
             "hand_right": hand_right,
             "label": self.Y[index],
-            "label_face": label_face,
             "label_body": label_body,
             "length": length,
             "paths": self.paths[index],
-            "facial_cnn_features": features
         }

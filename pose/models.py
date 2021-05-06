@@ -82,146 +82,51 @@ class BodyFaceEmotionClassifier(nn.Module):
         super(BodyFaceEmotionClassifier, self).__init__()
         self.args = args
 
-        total_features_size = 0
+        """ use simple dnn for modeling the skeleton """
+        # this is the number of openpose skeleton joints: 21 2D points for hands and 25 2D points for body
+        n = 42 + 42 + 50
+        self.static = nn.Sequential(
+            nn.Linear(n, args.first_layer_size),
+            nn.ReLU()
+        )
+        self.bn_body = nn.BatchNorm1d(args.first_layer_size)
+        self.classifier_body = nn.Sequential(
+            nn.Linear(args.first_layer_size, args.num_classes)
+        )
 
-        if args.use_cnn_features:
-            """ add features from cnn for face """
-            total_features_size += 2048
+    def forward(self, inp):
+        body, hand_right, hand_left, length = inp
 
-        if args.add_body_dnn:
-            """ use simple dnn for modeling the skeleton """
-            # this is the number of openpose skeleton joints: 21 2D points for hands and 25 2D points for body
-            n = 42 + 42 + 50
+        features = torch.cat((body, hand_right, hand_left), dim=2)
+        features = features.view(features.size(0), features.size(1), -1, 3)
 
-            self.static = nn.Sequential(
-                nn.Linear(n, args.first_layer_size),
-                nn.ReLU()
-            )
-            total_features_size += args.first_layer_size
+        features_positions_x = features[:, :, :, 0].clone()
+        features_positions_y = features[:, :, :, 1].clone()
 
-        if args.split_branches:
-            """ in split_branches mode and score fusion, emotion scores are calculated per class, and then the whole body and 
-            complete fusion of three (if deep is selected) """
+        confidences = features[:, :, :, 2].clone()
+        t = torch.tensor([self.args.confidence_threshold]).cuda()  # threshold for confidence of joints
+        confidences = (confidences > t).float() * 1
 
-            self.bn2 = nn.BatchNorm1d(total_features_size)
+        # make all joints with threshold lower than
+        features_positions = torch.stack(
+            (features_positions_x * confidences, features_positions_y * confidences), dim=3
+        )
 
-            self.bn_body = nn.BatchNorm1d(args.first_layer_size)
-            self.bn_face = nn.BatchNorm1d(2048)
-            self.classifier_body = nn.Sequential(
-                nn.Linear(args.first_layer_size, args.num_classes)
-            )
-            self.classifier_face = nn.Sequential(
-                nn.Linear(2048, args.num_classes)
-            )
+        static_features = features_positions.view(features_positions.size(0), features_positions.size(1), -1)
+        static_features = self.static(static_features)
 
-            """ the labels for face and body contain neutral as well, the whole body do not -> num_classes - 1 """
+        # feats.append(torch.max(static_features,dim=1)/length.unsqueeze(1).float())
 
-            if args.add_whole_body_branch:
-                self.classifier = nn.Sequential(
-                    nn.Linear(args.first_layer_size + 2048, args.num_classes - 1)
-                )
-            else:
-                # if no whole body branch with feature fusion, then do a simple with score fusion
-                self.classifier = nn.Sequential(
-                    nn.Linear(2 * args.num_classes, args.num_classes - 1)
-                )
-            if args.do_fusion:
+        sum_ = torch.zeros(body.size(0), static_features.size(2)).float().cuda()
+        if self.args.body_pooling == "max":
+            for i in range(0, body.size(0)):
+                sum_[i] = torch.max(static_features[i, :length[i], :], dim=0)[0]
+        elif self.args.body_pooling == "avg":
+            for i in range(0, body.size(0)):
+                sum_[i] = torch.sum(static_features[i, :length[i], :], dim=0) / length[i].float()
 
-                if self.args.add_whole_body_branch:
-                    self.classifier_deep = nn.Sequential(
-                        nn.Linear(2 * args.num_classes + args.num_classes - 1, args.num_classes - 1)
-                    )
-                else:
-                    # HMT-3a
-                    self.classifier_deep = nn.Sequential(
-                        nn.Linear(2 * args.num_classes, args.num_classes - 1)
-                    )
+        out_body = self.classifier_body(
+            self.bn_body(torch.sum(static_features, dim=1) / length.unsqueeze(1).float())
+        )
 
-        else:
-            # just merge all features together and classify with labels of the full body
-            self.bn2 = nn.BatchNorm1d(total_features_size)
-            self.bn_body = nn.BatchNorm1d(128)
-            self.bn_face = nn.BatchNorm1d(2048)
-
-            self.classifier = nn.Sequential(
-                nn.Linear(total_features_size, args.num_classes),
-            )
-            self.b = torch.tensor([1, 2, 3, 4, 5, 6, 7, 8, 15, 16, 17, 18]).cuda().long()
-
-    def forward(self, inp, get_features=False):
-        face, body, hand_right, hand_left, length, facial_cnn_features = inp
-
-        feats = []
-
-        if self.args.add_body_dnn:
-            features = torch.cat((body, hand_right, hand_left), dim=2)
-            features = features.view(features.size(0), features.size(1), -1, 3)
-
-            features_positions_x = features[:, :, :, 0].clone()
-            features_positions_y = features[:, :, :, 1].clone()
-
-            confidences = features[:, :, :, 2].clone()
-            t = torch.tensor([self.args.confidence_threshold]).cuda()  # threshold for confidence of joints
-            confidences = (confidences > t).float() * 1
-
-            # make all joints with threshold lower than 
-            features_positions = torch.stack(
-                (features_positions_x * confidences, features_positions_y * confidences), dim=3)
-
-            static_features = features_positions.view(features_positions.size(0), features_positions.size(1), -1)
-
-            static_features = self.static(static_features)
-
-            # feats.append(torch.max(static_features,dim=1)/length.unsqueeze(1).float())
-
-            sum_ = torch.zeros(body.size(0), static_features.size(2)).float().cuda()
-
-            if self.args.body_pooling == "max":
-                for i in range(0, body.size(0)):
-                    sum_[i] = torch.max(static_features[i, :length[i], :], dim=0)[0]
-            elif self.args.body_pooling == "avg":
-                for i in range(0, body.size(0)):
-                    sum_[i] = torch.sum(static_features[i, :length[i], :], dim=0) / length[i].float()
-
-            feats.append(sum_)
-
-            if self.args.split_branches:
-                out_body = self.classifier_body(
-                    self.bn_body(torch.sum(static_features, dim=1) / length.unsqueeze(1).float()))
-
-        if self.args.use_cnn_features:
-            if self.args.face_pooling == "max":
-                facial_cnn_features, _ = torch.max(facial_cnn_features, dim=1)
-            elif self.args.face_pooling == "avg":
-                facial_cnn_features = torch.mean(facial_cnn_features, dim=1)
-
-            if self.args.split_branches:
-                out_face = self.classifier_face(self.bn_face(facial_cnn_features))
-
-            feats.append(facial_cnn_features)
-
-        features = torch.cat(feats, dim=1)
-
-        if get_features:
-            return self.bn2(features)
-
-        if self.args.split_branches:
-            if self.args.do_fusion:
-                if self.args.add_whole_body_branch:
-                    out = self.classifier(features)
-                    out_deep = self.classifier_deep(torch.cat((out_body, out_face, out), dim=1))
-                else:
-                    out = None
-                    out_deep = self.classifier_deep(torch.cat((out_body, out_face), dim=1))
-
-                return out, out_body, out_face, out_deep
-            elif self.args.add_whole_body_branch:
-                out = self.classifier(features)
-                return out, out_body, out_face
-            else:
-                out = self.classifier(torch.cat((out_body, out_face), dim=1))
-                return out, out_body, out_face
-
-        else:
-            out = self.classifier(self.bn2(features))
-            return out
+        return out_body
