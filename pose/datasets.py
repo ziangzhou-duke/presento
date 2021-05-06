@@ -199,41 +199,17 @@ def get_keypoints_from_json_list(json_list, json_dir):
 
 
 class BodyFaceDataset(data.Dataset):
-    def __init__(self, args, data=None, indices=None, subjects=None, phase=None):
-        self.args = args
-        self.phase = phase
-
-        if data is not None:
-            faces, bodies, hands_right, hands_left, lengths, Y, Y_face, Y_body, paths, groups = data
-
-            self.faces = [faces[x] for x in indices]
-            self.bodies = [bodies[x] for x in indices]
-            self.hands_right = [hands_right[x] for x in indices]
-            self.hands_left = [hands_left[x] for x in indices]
-            self.lengths = [lengths[x] for x in indices]
-            self.Y = [Y[x] for x in indices]
-            self.Y_face = [Y_face[x] for x in indices]
-            self.Y_body = [Y_body[x] for x in indices]
-            self.paths = [paths[x] for x in indices]
-            self.groups = [groups[x] for x in indices]
-
-        elif subjects is not None:
-            (
-                self.faces, self.bodies, self.hands_right, self.hands_left,
-                self.lengths, self.Y, self.Y_face,
-                self.Y_body, self.paths, self.groups
-            ) = get_babyrobot_data()
+    def __init__(self, indices, bodies, hands_right, hands_left, lengths, Y, Y_body):
+        self.bodies = [bodies[x] for x in indices]
+        self.hands_right = [hands_right[x] for x in indices]
+        self.hands_left = [hands_left[x] for x in indices]
+        self.lengths = [lengths[x] for x in indices]
+        self.Y = [Y[x] for x in indices]
+        self.Y_body = [Y_body[x] for x in indices]
 
         self.lengths = []
         for index in range(len(self.bodies)):
             self.lengths.append(self.bodies[index].shape[0])
-
-        self.features = []
-        for index in range(len(self.bodies)):
-            features_path = self.paths[index] + "/cnn_features"
-
-            features = torch.load(features_path, map_location=lambda storage, loc: storage)
-            self.features.append(features)
 
         self.scaler = None
 
@@ -242,13 +218,11 @@ class BodyFaceDataset(data.Dataset):
         self.hands_right = [scaler['hands_right'].transform(x) for x in self.hands_right]
         self.hands_left = [scaler['hands_left'].transform(x) for x in self.hands_left]
         self.bodies = [scaler['bodies'].transform(x) for x in self.bodies]
-        self.faces = [scaler['faces'].transform(x) for x in self.faces]
 
     def to_tensors(self):
         self.hands_right = [torch.from_numpy(x).float() for x in self.hands_right]
         self.hands_left = [torch.from_numpy(x).float() for x in self.hands_left]
         self.bodies = [torch.from_numpy(x).float() for x in self.bodies]
-        self.faces = [torch.from_numpy(x).float() for x in self.faces]
 
     def prepad(self):
         """Pre-pad sequences to the max length sequence of each database"""
@@ -256,8 +230,6 @@ class BodyFaceDataset(data.Dataset):
         self.bodies = pad_sequence(self.bodies, batch_first=True, max_len=max_len)
         self.hands_right = pad_sequence(self.hands_right, batch_first=True, max_len=max_len)
         self.hands_left = pad_sequence(self.hands_left, batch_first=True, max_len=max_len)
-        self.faces = pad_sequence(self.faces, batch_first=True, max_len=max_len)
-        self.features = pad_sequence(self.features, batch_first=True, max_len=max_len)
 
     def __len__(self):
         return len(self.Y)
@@ -277,5 +249,4 @@ class BodyFaceDataset(data.Dataset):
             "label": self.Y[index],
             "label_body": label_body,
             "length": length,
-            "paths": self.paths[index],
         }

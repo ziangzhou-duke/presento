@@ -47,13 +47,23 @@ class Trainer:
         self.logger = create_logger('train', os.path.join(args.out_dir, f'{time.time()}.log'))
         self.logger.info(" ".join(sys.argv))  # save entire command for reproduction
 
-        self.init_datasets()
+        self._init_datasets()
+
+        batch_size = self.args.batch_size
+        self.dataloader_train = torch.utils.data.DataLoader(
+            self.train_dataset, shuffle=True, batch_size=batch_size, drop_last=True, num_workers=4
+        )
+        self.dataloader_test = torch.utils.data.DataLoader(
+            self.test_dataset, batch_size=len(self.test_dataset), num_workers=4
+        )
+        self.model = BodyFaceEmotionClassifier(self.args).cuda()
+
         self.current_epoch = 0
         self.history: List[TrainHistory] = []
 
     def get_scaler(self):
         scaler = {}
-        feats = ["bodies", "faces", "hands_right", "hands_left", ]
+        feats = ["bodies", "hands_right", "hands_left"]
 
         for x in feats:
             all_data = np.vstack(getattr(self.train_dataset, x))
@@ -63,17 +73,16 @@ class Trainer:
 
         return scaler
 
-    def init_datasets(self):
-        data = get_babyrobot_data()
-        faces, bodies, hands_right, hands_left, lengths, Y, Y_face, Y_body, paths, groups = data
+    def _init_datasets(self):
+        faces, bodies, hands_right, hands_left, lengths, Y, Y_face, Y_body, paths, groups = get_babyrobot_data()
 
         # assert len(bodies) == len(faces) == len(hands_right) == len(hands_left) == len(Y) == len(Y_face)
 
         indices = list(range(len(bodies)))
         train_idx, test_idx = train_test_split(indices, test_size=0.3)
 
-        self.train_dataset = BodyFaceDataset(data=data, indices=train_idx, phase="train", args=self.args)
-        self.test_dataset = BodyFaceDataset(data=data, indices=test_idx, phase="val", args=self.args)
+        self.train_dataset = BodyFaceDataset(train_idx, bodies, hands_right, hands_left, lengths, Y, Y_body)
+        self.test_dataset = BodyFaceDataset(test_idx, bodies, hands_right, hands_left, lengths, Y, Y_body)
 
         self.logger.info(f"train samples: {len(self.train_dataset):d}")
         self.logger.info(f"test samples: {len(self.test_dataset):d}")
@@ -90,15 +99,6 @@ class Trainer:
         self.test_dataset.prepad()
 
     def train(self):
-        batch_size = self.args.batch_size
-        self.dataloader_train = torch.utils.data.DataLoader(
-            self.train_dataset, shuffle=True, batch_size=batch_size, drop_last=True, num_workers=4
-        )
-        self.dataloader_test = torch.utils.data.DataLoader(
-            self.test_dataset, batch_size=len(self.test_dataset), num_workers=4
-        )
-        self.model = BodyFaceEmotionClassifier(self.args).cuda()
-
         self._fit()
         self.plot_history()
 
