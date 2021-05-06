@@ -4,7 +4,8 @@ from pose.trainer import Trainer
 
 matplotlib.use('Agg')
 import argparse
-from utils import *
+import numpy as np
+import torch
 
 torch.manual_seed(7)
 np.random.seed(7)
