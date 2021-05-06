@@ -56,7 +56,10 @@ class Trainer:
         self.dataloader_test = torch.utils.data.DataLoader(
             self.test_dataset, batch_size=len(self.test_dataset), num_workers=4
         )
-        self.model = BodyFaceEmotionClassifier(self.args).cuda()
+        self.model = BodyFaceEmotionClassifier(
+            self.args.first_layer_size, self.args.num_classes,
+            self.args.confidence_threshold, self.args.body_pooling
+        ).cuda()
 
         self.current_epoch = 0
         self.history: List[TrainHistory] = []

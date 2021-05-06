@@ -78,21 +78,22 @@ def init_weights(m):
 
 
 class BodyFaceEmotionClassifier(nn.Module):
-    def __init__(self, args):
+    def __init__(self, first_layer_size: int, num_classes: int, confidence_threshold: float, body_pooling: str):
         super(BodyFaceEmotionClassifier, self).__init__()
-        self.args = args
 
         """ use simple dnn for modeling the skeleton """
         # this is the number of openpose skeleton joints: 21 2D points for hands and 25 2D points for body
         n = 42 + 42 + 50
         self.static = nn.Sequential(
-            nn.Linear(n, args.first_layer_size),
+            nn.Linear(n, first_layer_size),
             nn.ReLU()
         )
-        self.bn_body = nn.BatchNorm1d(args.first_layer_size)
+        self.bn_body = nn.BatchNorm1d(first_layer_size)
         self.classifier_body = nn.Sequential(
-            nn.Linear(args.first_layer_size, args.num_classes)
+            nn.Linear(first_layer_size, num_classes)
         )
+        self.confidence_threshold = confidence_threshold
+        self.body_pooling = body_pooling
 
     def forward(self, inp):
         body, hand_right, hand_left, length = inp
@@ -104,7 +105,7 @@ class BodyFaceEmotionClassifier(nn.Module):
         features_positions_y = features[:, :, :, 1].clone()
 
         confidences = features[:, :, :, 2].clone()
-        t = torch.tensor([self.args.confidence_threshold]).cuda()  # threshold for confidence of joints
+        t = torch.tensor([self.confidence_threshold]).cuda()  # threshold for confidence of joints
         confidences = (confidences > t).float() * 1
 
         # make all joints with threshold lower than
@@ -118,10 +119,10 @@ class BodyFaceEmotionClassifier(nn.Module):
         # feats.append(torch.max(static_features,dim=1)/length.unsqueeze(1).float())
 
         sum_ = torch.zeros(body.size(0), static_features.size(2)).float().cuda()
-        if self.args.body_pooling == "max":
+        if self.body_pooling == "max":
             for i in range(0, body.size(0)):
                 sum_[i] = torch.max(static_features[i, :length[i], :], dim=0)[0]
-        elif self.args.body_pooling == "avg":
+        elif self.body_pooling == "avg":
             for i in range(0, body.size(0)):
                 sum_[i] = torch.sum(static_features[i, :length[i], :], dim=0) / length[i].float()
 
