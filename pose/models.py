@@ -78,7 +78,10 @@ def init_weights(m):
 
 
 class BodyFaceEmotionClassifier(nn.Module):
-    def __init__(self, first_layer_size: int, num_classes: int, confidence_threshold: float, body_pooling: str):
+    def __init__(
+            self, first_layer_size: int, num_classes: int, confidence_threshold: float, body_pooling: str,
+            scalers: dict
+    ):
         super(BodyFaceEmotionClassifier, self).__init__()
 
         """ use simple dnn for modeling the skeleton """
@@ -94,6 +97,7 @@ class BodyFaceEmotionClassifier(nn.Module):
         )
         self.confidence_threshold = confidence_threshold
         self.body_pooling = body_pooling
+        self.scalers = scalers
 
     def forward(self, inp):
         body, hand_right, hand_left, length = inp

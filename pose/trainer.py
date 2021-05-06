@@ -58,7 +58,8 @@ class Trainer:
         )
         self.model = BodyFaceEmotionClassifier(
             self.args.first_layer_size, self.args.num_classes,
-            self.args.confidence_threshold, self.args.body_pooling
+            self.args.confidence_threshold, self.args.body_pooling,
+            self.get_scaler()
         ).cuda()
 
         self.current_epoch = 0
