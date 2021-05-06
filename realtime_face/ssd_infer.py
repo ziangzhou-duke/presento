@@ -1,11 +1,11 @@
 import os
-import glob
 import json
 import cv2
 import numpy as np
 import torch
 from torchvision.transforms import transforms
-from models import densenet121, resmasking_dropout1
+from realtime_face.models.resmasking import resmasking_dropout1
+from realtime_face import FACE_ROOT_DIR
 
 
 def ensure_color(image):
@@ -17,12 +17,11 @@ def ensure_color(image):
 
 
 net = cv2.dnn.readNetFromCaffe(
-    "deploy.prototxt.txt", "res10_300x300_ssd_iter_140000.caffemodel"
+    os.path.join(FACE_ROOT_DIR, "deploy.prototxt.txt"),
+    os.path.join(FACE_ROOT_DIR, "res10_300x300_ssd_iter_140000.caffemodel")
 )
 
-
 transform = transforms.Compose([transforms.ToPILImage(), transforms.ToTensor()])
-
 
 FER_2013_EMO_DICT = {
     0: "angry",
@@ -37,7 +36,7 @@ FER_2013_EMO_DICT = {
 
 def main():
     # load configs and set random seed
-    configs = json.load(open("./configs/fer2013_config.json"))
+    configs = json.load(open(os.path.join(FACE_ROOT_DIR, "configs", "fer2013_config.json")))
     image_size = (configs["image_size"], configs["image_size"])
 
     # model = densenet121(in_channels=3, num_classes=7)
@@ -47,7 +46,7 @@ def main():
     # state = torch.load('./saved/checkpoints/densenet121_rot30_2019Nov11_14.23')
     # state = torch.load('./saved/checkpoints/resmasking_dropout1_rot30_2019Nov17_14.33')
     state = torch.load(
-        "./saved/pretrained_ckpt"
+        os.path.join(FACE_ROOT_DIR, "Z_resmasking_dropout1_rot30_2019Nov30_13.32")
     )
     model.load_state_dict(state["net"])
     model.eval()
