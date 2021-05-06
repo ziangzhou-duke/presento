@@ -12,7 +12,24 @@ from pose.datasets import get_babyrobot_data, BodyFaceDataset
 from pose.models import BodyFaceEmotionClassifier
 from dataclasses import dataclass
 import numpy as np
+import logging
+import sys
 import os
+
+
+def create_logger(name: str, log_file: str) -> logging.Logger:
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+
+    formatter = logging.Formatter(fmt='[%(levelname)s] %(asctime)s: %(message)s', datefmt='%Y-%m-%d-%H-%M-%S')
+
+    file_handler = logging.FileHandler(log_file, mode='a')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setFormatter(formatter)
+    logger.addHandler(stdout_handler)
+    return logger
 
 
 @dataclass
@@ -23,9 +40,12 @@ class TrainHistory:
 
 class Trainer:
     def __init__(self, args):
-        print(f'================\nargs:\n{args}\n================')
         self.args = args
         os.makedirs(args.out_dir, exist_ok=True)
+
+        import time
+        self.logger = create_logger('train', os.path.join(args.out_dir, f'{time.time()}.log'))
+        self.logger.info(" ".join(sys.argv))  # save entire command for reproduction
 
         self.init_datasets()
         self.current_epoch = 0
@@ -55,8 +75,8 @@ class Trainer:
         self.train_dataset = BodyFaceDataset(data=data, indices=train_idx, phase="train", args=self.args)
         self.test_dataset = BodyFaceDataset(data=data, indices=test_idx, phase="val", args=self.args)
 
-        print(f"train samples: {len(self.train_dataset):d}")
-        print(f"test samples: {len(self.test_dataset):d}")
+        self.logger.info(f"train samples: {len(self.train_dataset):d}")
+        self.logger.info(f"test samples: {len(self.test_dataset):d}")
 
         scaler = self.get_scaler()
 
@@ -120,7 +140,6 @@ class Trainer:
 
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=self.args.step_size, gamma=0.1)
 
-        t = trange(len(self.dataloader_train))
         lr = -1.0
         for self.current_epoch in range(self.args.epochs):
             train_acc, train_loss = self.train_epoch()
@@ -132,11 +151,9 @@ class Trainer:
 
             self.history.append(TrainHistory(val_top_all, train_loss))
 
-            t.set_postfix(
-                epoch=self.current_epoch, trian_loss=train_loss, train_acc=train_acc,
-                val_acc=val_top_all, lr=lr
-            )
-            t.update()
+            self.logger.info(
+                f"epoch={self.current_epoch}, train_loss={train_loss}, train_acc={train_acc}, "
+                f"val_acc={val_top_all}, lr={lr}")
 
     def train_epoch(self):
         self.model.train()
@@ -166,6 +183,8 @@ class Trainer:
             accs = accuracy(out_body, y_body, topk=(1,))
             accuracy_meter_top_all.update(accs[0].item(), length.size(0))
             loss_meter.update(loss.item(), length.size(0))
+
+        torch.save(self.model, os.path.join(self.args.out_dir, f'{self.current_epoch}.ckpt'))
 
         return accuracy_meter_top_all.avg, loss_meter.avg
 
@@ -197,7 +216,7 @@ class Trainer:
                         y.cpu().numpy(), torch.argmax(out_body, dim=1).cpu().numpy(),
                         labels=range(0, self.args.num_classes)
                     )
-                    print(conf)
+                    self.logger.info(conf)
 
         return (
             accuracy_meter_top_all.avg, p * 100, r * 100, f * 100
