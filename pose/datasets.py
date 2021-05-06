@@ -178,24 +178,31 @@ def get_keypoints_from_json_list(json_list, json_dir):
         hand_right_keypoints = np.reshape(hand_right_keypoints, (-1, 3))  # reshape to (num_points * dimension,)
 
         # ========================= Spatial Normalization ==========================
-        # TODO: extract this into a function, and use it on openpose output
-        normalize_point_x = keypoints[8, 0]
-        normalize_point_y = keypoints[8, 1]
-
-        keypoints[:, 0] -= normalize_point_x
-        keypoints[:, 1] -= normalize_point_y
-
-        hand_left_keypoints[:, 0] = hand_left_keypoints[:, 0] - hand_left_keypoints[0, 0]
-        hand_left_keypoints[:, 1] = hand_left_keypoints[:, 1] - hand_left_keypoints[0, 1]
-
-        hand_right_keypoints[:, 0] = hand_right_keypoints[:, 0] - hand_right_keypoints[0, 0]
-        hand_right_keypoints[:, 1] = hand_right_keypoints[:, 1] - hand_right_keypoints[0, 1]
+        keypoints, hand_left_keypoints, hand_right_keypoints = normalize_skeleton(
+            keypoints, hand_left_keypoints, hand_right_keypoints
+        )
 
         keypoints_array.append(np.reshape(keypoints, (-1)))
         hand_left_keypoints_array.append(np.reshape(hand_left_keypoints, (-1)))
         hand_right_keypoints_array.append(np.reshape(hand_right_keypoints, (-1)))
 
     return keypoints_array, hand_left_keypoints_array, hand_right_keypoints_array
+
+
+def normalize_skeleton(poses, left_hands, right_hands):
+    normalize_point_x = poses[8, 0]
+    normalize_point_y = poses[8, 1]
+
+    poses[:, 0] -= normalize_point_x
+    poses[:, 1] -= normalize_point_y
+
+    left_hands[:, 0] = left_hands[:, 0] - left_hands[0, 0]
+    left_hands[:, 1] = left_hands[:, 1] - left_hands[0, 1]
+
+    right_hands[:, 0] = right_hands[:, 0] - right_hands[0, 0]
+    right_hands[:, 1] = right_hands[:, 1] - right_hands[0, 1]
+
+    return poses, left_hands, right_hands
 
 
 class BodyFaceDataset(data.Dataset):
