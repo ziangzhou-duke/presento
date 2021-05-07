@@ -51,104 +51,116 @@ def main():
     model.load_state_dict(state["net"])
     model.eval()
 
-    vid = cv2.VideoCapture(0)
+    # vid = cv2.VideoCapture(0)
+    vid = cv2.VideoCapture("test_images/1.mp4")
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out_vid = cv2.VideoWriter(
+        filename='out.mp4', fourcc=fourcc, fps=vid.get(cv2.CAP_PROP_FPS),
+        frameSize=(
+            int(vid.get(cv2.CAP_PROP_FRAME_WIDTH)),
+            int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+        )
+    )
 
     # cv2.namedWindow('disp')
     # cv2.resizeWindow('disp', width=800)
 
+    count = 0
     with torch.no_grad():
         while True:
-            ret, frame = vid.read()
-            if frame is None or ret is not True:
-                continue
+            success, frame = vid.read()
+            if frame is None or success is not True:
+                break
 
-            try:
-                frame = np.fliplr(frame).astype(np.uint8)
-                # frame += 50
-                h, w = frame.shape[:2]
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                # gray = frame
+            frame = np.fliplr(frame).astype(np.uint8)
+            # frame += 50
+            h, w = frame.shape[:2]
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            # gray = frame
 
-                blob = cv2.dnn.blobFromImage(
-                    cv2.resize(frame, (300, 300)),
-                    1.0,
-                    (300, 300),
-                    (104.0, 177.0, 123.0),
+            blob = cv2.dnn.blobFromImage(
+                cv2.resize(frame, (300, 300)),
+                1.0,
+                (300, 300),
+                (104.0, 177.0, 123.0),
+            )
+            net.setInput(blob)
+            faces = net.forward()
+
+            for i in range(0, faces.shape[2]):
+                confidence = faces[0, 0, i, 2]
+                if confidence < 0.5:
+                    continue
+                box = faces[0, 0, i, 3:7] * np.array([w, h, w, h])
+                start_x, start_y, end_x, end_y = box.astype("int")
+
+                # convert to square images
+                center_x, center_y = (start_x + end_x) // 2, (start_y + end_y) // 2
+                square_length = ((end_x - start_x) + (end_y - start_y)) // 2 // 2
+
+                square_length *= 1.1
+
+                start_x = int(center_x - square_length)
+                start_y = int(center_y - square_length)
+                end_x = int(center_x + square_length)
+                end_y = int(center_y + square_length)
+
+                cv2.rectangle(
+                    frame, (start_x, start_y), (end_x, end_y), (179, 255, 179), 2
                 )
-                net.setInput(blob)
-                faces = net.forward()
+                # cv2.rectangle(frame , (x, y), (x + w, y + h), (179, 255, 179), 2)
 
-                for i in range(0, faces.shape[2]):
-                    confidence = faces[0, 0, i, 2]
-                    if confidence < 0.5:
-                        continue
-                    box = faces[0, 0, i, 3:7] * np.array([w, h, w, h])
-                    start_x, start_y, end_x, end_y = box.astype("int")
+                # face = gray[y:y + h, x:x + w]
+                face = gray[start_y:end_y, start_x:end_x]
 
-                    # covnert to square images
-                    center_x, center_y = (start_x + end_x) // 2, (start_y + end_y) // 2
-                    square_length = ((end_x - start_x) + (end_y - start_y)) // 2 // 2
+                face = ensure_color(face)
 
-                    square_length *= 1.1
+                face = cv2.resize(face, image_size)
+                face = transform(face).cuda()
+                face = torch.unsqueeze(face, dim=0)
 
-                    start_x = int(center_x - square_length)
-                    start_y = int(center_y - square_length)
-                    end_x = int(center_x + square_length)
-                    end_y = int(center_y + square_length)
+                output = torch.squeeze(model(face), 0)
+                proba = torch.softmax(output, 0)
 
-                    cv2.rectangle(
-                        frame, (start_x, start_y), (end_x, end_y), (179, 255, 179), 2
-                    )
-                    # cv2.rectangle(frame , (x, y), (x + w, y + h), (179, 255, 179), 2)
+                # emo_idx = torch.argmax(proba, dim=0).item()
+                emo_proba, emo_idx = torch.max(proba, dim=0)
+                emo_idx = emo_idx.item()
+                emo_proba = emo_proba.item()
 
-                    # face = gray[y:y + h, x:x + w]
-                    face = gray[start_y:end_y, start_x:end_x]
+                emo_label = FER_2013_EMO_DICT[emo_idx]
 
-                    face = ensure_color(face)
+                label_size, base_line = cv2.getTextSize(
+                    "{}: 000".format(emo_label), cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2
+                )
 
-                    face = cv2.resize(face, image_size)
-                    face = transform(face).cuda()
-                    face = torch.unsqueeze(face, dim=0)
+                cv2.rectangle(
+                    frame,
+                    (end_x, start_y + 1 - label_size[1]),
+                    (end_x + label_size[0], start_y + 1 + base_line),
+                    (223, 128, 255),
+                    cv2.FILLED,
+                )
+                cv2.putText(
+                    frame,
+                    "{} {}".format(emo_label, int(emo_proba * 100)),
+                    (end_x, start_y + 1),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8,
+                    (0, 0, 0),
+                    2,
+                )
 
-                    output = torch.squeeze(model(face), 0)
-                    proba = torch.softmax(output, 0)
+            count += 1
+            out_vid.write(frame)
 
-                    # emo_idx = torch.argmax(proba, dim=0).item()
-                    emo_proba, emo_idx = torch.max(proba, dim=0)
-                    emo_idx = emo_idx.item()
-                    emo_proba = emo_proba.item()
+            print(f'frame: {count}')
 
-                    emo_label = FER_2013_EMO_DICT[emo_idx]
-
-                    label_size, base_line = cv2.getTextSize(
-                        "{}: 000".format(emo_label), cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2
-                    )
-
-                    cv2.rectangle(
-                        frame,
-                        (end_x, start_y + 1 - label_size[1]),
-                        (end_x + label_size[0], start_y + 1 + base_line),
-                        (223, 128, 255),
-                        cv2.FILLED,
-                    )
-                    cv2.putText(
-                        frame,
-                        "{} {}".format(emo_label, int(emo_proba * 100)),
-                        (end_x, start_y + 1),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.8,
-                        (0, 0, 0),
-                        2,
-                    )
-
-                cv2.imshow("disp", frame)
-                # cv2.imshow('disp', np.concatenate((gray ), axis=1))
-                if cv2.waitKey(1) == ord("q"):
-                    break
-
-            except:
-                continue
-        cv2.destroyAllWindows()
+            # cv2.imshow("disp", frame)
+            # cv2.imshow('disp', np.concatenate((gray ), axis=1))
+            # if cv2.waitKey(1) == ord("q"):
+            #     break
+        # cv2.destroyAllWindows()
+        out_vid.release()
 
 
 if __name__ == "__main__":
