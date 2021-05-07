@@ -71,7 +71,7 @@ def main():
                 softmaxes = [np.zeros(7), np.zeros(7)]
                 n_preds = [0, 0]
 
-            draw_annotation(out_frame, 10, 10, label)
+            draw_annotation(out_frame, 10, 20, label)
 
             out_vid.write(out_frame)
             count += 1

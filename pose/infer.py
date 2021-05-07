@@ -10,7 +10,7 @@ from pose.extract_skeleton import SkeletonExtractor
 from pose.config import NUM_FRAMES_PER_SEGMENT
 from pose import POSE_ROOT_DIR
 from pose.models import BodyFaceEmotionClassifier
-from pose.utils import visualize_skeleton_openpose
+from pose.utils import cv_draw_skeleton
 from pose.datasets import BodyFaceDataset, normalize_skeleton, babyrobot_to_FER
 from torch.utils.data import DataLoader
 
@@ -35,6 +35,9 @@ class PoseEmotionEstimator:
         out_frame = np.zeros_like(frame)
 
         pose, left_hand, right_hand = self.get_first_person(frame)
+
+        cv_draw_skeleton(out_frame, pose, left_hand, right_hand)
+
         pose, left_hand, right_hand = normalize_skeleton(pose, left_hand, right_hand)
 
         self.poses.append(pose.ravel())

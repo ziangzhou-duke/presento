@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def accuracy(output, target, topk=(1,), weighted=False):
@@ -20,61 +21,54 @@ def accuracy(output, target, topk=(1,), weighted=False):
         return res
 
 
-def visualize_skeleton(sequence, joints):
-    import numpy as np
+joints_edges = [
+    [15, 17], [15, 0], [16, 0], [16, 18], [1, 0], [1, 2],
+    [3, 2], [3, 4], [1, 5], [5, 6], [6, 7], [1, 8], [8, 9], [9, 10],
+    [10, 11], [11, 24], [11, 22], [23, 22], [8, 12], [13, 12], [13, 14], [14, 21], [14, 19], [19, 21],
+    [19, 20]
+]
+
+hands_edges = [
+    [0, 1], [1, 2], [2, 3], [3, 4],
+    [0, 5], [5, 6], [6, 7], [7, 8],
+    [0, 9], [9, 10], [10, 11], [11, 12],
+    [0, 13], [13, 14], [14, 15], [15, 16],
+    [0, 17], [17, 18], [18, 19], [19, 20]
+]
+
+
+def cv_draw_skeleton(image: np.ndarray, joints, hand_left, hand_right):
+    height, width = image.shape[:2]
+
     import cv2
-    from mpl_toolkits.mplot3d import Axes3D
-    import matplotlib.animation as animation
-    import matplotlib
-    matplotlib.use('Agg')
+    # joints[joints[:, 2] < 0.01] = np.nan
+    # joints[np.isnan(joints[:, 2])] = np.nan
+    # hand_right[hand_right[:, 2] < 0.01] = np.nan
+    # hand_right[np.isnan(hand_right[:, 2])] = np.nan
+    # hand_left[hand_left[:, 2] < 0.01] = np.nan
+    # hand_left[np.isnan(hand_left[:, 2])] = np.nan
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    edges = [joints_edges, hands_edges, hands_edges]
+    vertices = [joints, hand_left, hand_right]
+    for V, E in zip(vertices, edges):
+        for edge in E:
+            pts = [V[edge[0]], V[edge[1]]]
+            for i in range(2):
+                pts[i] = np.asarray(pts[i], dtype=float)
+                pts[i][0] *= width
+                pts[i][1] *= height
+                pts[i] = pts[i].astype('int32')[:2]
 
-    # ax = fig.add_subplot(111)
+            # print(pts)
+            cv2.line(img=image, pt1=tuple(pts[0]), pt2=tuple(pts[1]), color=(0, 255, 0), thickness=3)
 
-    def update_plot(i, data, scat):
-        scat.set_offsets(data[i].reshape(-1, 3))
-        return scat
-
-    # for frame in range(0,len(sequence)):
-    frame = 100
-    skeleton = sequence[frame].reshape(-1, 3)
-    scat = ax.scatter(skeleton[:, 0], skeleton[:, 1], skeleton[:, 2])
-    for edge in joints:
-        ax.plot((skeleton[edge[0], 0], skeleton[edge[1], 0]),
-                (skeleton[edge[0], 1], skeleton[edge[1], 1]),
-                (skeleton[edge[0], 2], skeleton[edge[1], 2]))
-    # ani =   animation.FuncAnimation(fig, update_plot, frames=range(len(sequence)),
-    #                               fargs=(sequence, scat))
-
-    plt.savefig("out.png")
-
-
-import matplotlib.pyplot as plt
-
-plt.rcParams["figure.figsize"] = [16, 9]
+    return image
 
 
 def visualize_skeleton_openpose(joints, hand_left, hand_right, filename="fig.png"):
-    joints_edges = [[15, 17], [15, 0], [16, 0], [16, 18], [1, 0], [1, 2],
-                    [3, 2], [3, 4], [1, 5], [5, 6], [6, 7], [1, 8], [8, 9], [9, 10],
-                    [10, 11], [11, 24], [23, 22], [8, 12], [13, 12], [13, 14], [14, 21], [19, 21],
-                    [19, 20]]
-
-    hands_edges = [[0, 1], [1, 2], [2, 3], [3, 4],
-                   [0, 5], [5, 6], [6, 7], [7, 8],
-                   [0, 9], [9, 10], [10, 11], [11, 12],
-                   [0, 13], [13, 14], [14, 15], [15, 16],
-                   [0, 17], [17, 18], [18, 19], [19, 20]]
-
-    import matplotlib.animation as animation
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
-    # def update_plot(i, data, scat):
-    #     scat.set_offsets(data[i].reshape(-1,2))
-    #     return scat
     joints[joints[:, 2] < 0.01] = np.nan
     joints[np.isnan(joints[:, 2])] = np.nan
 
@@ -84,33 +78,24 @@ def visualize_skeleton_openpose(joints, hand_left, hand_right, filename="fig.png
     hand_left[hand_left[:, 2] < 0.01] = np.nan
     hand_left[np.isnan(hand_left[:, 2])] = np.nan
 
-    # hand_right[hand_right<0.3] = 'nan'
-    # hand_left[hand_left[:,2]<0.3] = 'nan'
-    # skeleton = sequence[frame].reshape(-1, 2)
-    # joints[:,0] = 1-joints[:,0]
     scat = ax.scatter(joints[:, 0], joints[:, 1])
     for edge in joints_edges:
         ax.plot((joints[edge[0], 0], joints[edge[1], 0]),
                 (joints[edge[0], 1], joints[edge[1], 1]))
 
     joints = hand_right
-    # joints[:,0] = 1-joints[:,0]
     scat = ax.scatter(joints[:, 0], joints[:, 1])
     for edge in hands_edges:
         ax.plot((joints[edge[0], 0], joints[edge[1], 0]),
                 (joints[edge[0], 1], joints[edge[1], 1]))
 
     joints = hand_left
-    # joints[:,0] = 1-joints[:,0]
     scat = ax.scatter(joints[:, 0], joints[:, 1])
     for edge in hands_edges:
         ax.plot((joints[edge[0], 0], joints[edge[1], 0]),
                 (joints[edge[0], 1], joints[edge[1], 1]))
 
-    # ax.set_xlim(right=1, left=0)
-    # ax.set_ylim(top=1, bottom=0)
     plt.gca().invert_yaxis()
-
     plt.savefig(filename)
     plt.close()
 
@@ -559,10 +544,12 @@ def random_search():
     kernel_size = random.choice([2, 3, 5, 7, 9, 11])
     num_tcn_layers = random.choice([2, 3, 4, 6, 8, 10])
 
-    return {"hidden_size": hidden_size, "num_layers": num_layers, "bidirectional": bidirectional, "epochs": epochs,
-            "step_size": step_size, "lr": lr,
-            "weight_decay": weight_decay, "dropout": dropout, "batch_size": batch_size, "grad_clip": 0.1,
-            "multiply_with_confidence": 0.3, "num_input_lstm": num_input_lstm,
-            "num_channels": num_channels, "kernel_size": kernel_size, "num_tcn_layers": num_tcn_layers,
-            "spatial_net_features": spatial_net_features,
-            "spatial_net_one_feature": spatial_net_one_feature}
+    return {
+        "hidden_size": hidden_size, "num_layers": num_layers, "bidirectional": bidirectional, "epochs": epochs,
+        "step_size": step_size, "lr": lr,
+        "weight_decay": weight_decay, "dropout": dropout, "batch_size": batch_size, "grad_clip": 0.1,
+        "multiply_with_confidence": 0.3, "num_input_lstm": num_input_lstm,
+        "num_channels": num_channels, "kernel_size": kernel_size, "num_tcn_layers": num_tcn_layers,
+        "spatial_net_features": spatial_net_features,
+        "spatial_net_one_feature": spatial_net_one_feature
+    }
