@@ -28,12 +28,10 @@ class FaceEmotionEstimator:
         self.model.load_state_dict(self.state["net"])
         self.model.eval()
 
-        self.count = 0
-
-    def __call__(self, frame: np.ndarray) -> np.ndarray:
+    def __call__(self, frame: np.ndarray):
         return self.process_frame(frame)
 
-    def process_frame(self, frame: np.ndarray) -> np.ndarray:
+    def process_frame(self, frame: np.ndarray):
         out_frame = np.zeros_like(frame)
 
         # frame = np.fliplr(frame)
@@ -50,10 +48,12 @@ class FaceEmotionEstimator:
         self.net.setInput(blob)
         faces = self.net.forward()
 
+        softmax = None
         for i in range(0, faces.shape[2]):
             confidence = faces[0, 0, i, 2]
             if confidence < 0.5:
                 continue
+
             box = faces[0, 0, i, 3:7] * np.array([w, h, w, h])
             start_x, start_y, end_x, end_y = box.astype("int")
 
@@ -81,10 +81,10 @@ class FaceEmotionEstimator:
             face = torch.unsqueeze(face, dim=0)
 
             output = torch.squeeze(self.model(face), 0)
-            proba = torch.softmax(output, 0)
+            softmax = torch.softmax(output, 0)
 
             # emo_idx = torch.argmax(proba, dim=0).item()
-            emo_proba, emo_idx = torch.max(proba, dim=0)
+            emo_proba, emo_idx = torch.max(softmax, dim=0)
             emo_idx = emo_idx.item()
             emo_proba = emo_proba.item()
 
@@ -110,9 +110,9 @@ class FaceEmotionEstimator:
                 (0, 0, 0),
                 2,
             )
+            break  # only detect the first face
 
-        self.count += 1
-        return out_frame
+        return out_frame, softmax.cpu().detach().numpy()
 
 
 def ensure_color(image):
@@ -132,40 +132,3 @@ FER_2013_EMO_DICT = {
     5: "surprise",
     6: "neutral",
 }
-
-
-def main():
-    # vid = cv2.VideoCapture(0)
-    vid = cv2.VideoCapture("test_images/1.mp4")
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out_vid = cv2.VideoWriter(
-        filename='out.mp4', fourcc=fourcc, fps=vid.get(cv2.CAP_PROP_FPS),
-        frameSize=(
-            int(vid.get(cv2.CAP_PROP_FRAME_WIDTH)),
-            int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-        )
-    )
-
-    # cv2.namedWindow('disp')
-    # cv2.resizeWindow('disp', width=800)
-
-    estimator = FaceEmotionEstimator()
-    with torch.no_grad():
-        while True:
-            success, frame = vid.read()
-            if frame is None or success is not True:
-                break
-
-            frame = estimator(frame)
-            out_vid.write(frame)
-
-            # cv2.imshow("disp", frame)
-            # cv2.imshow('disp', np.concatenate((gray ), axis=1))
-            # if cv2.waitKey(1) == ord("q"):
-            #     break
-        # cv2.destroyAllWindows()
-        out_vid.release()
-
-
-if __name__ == "__main__":
-    main()

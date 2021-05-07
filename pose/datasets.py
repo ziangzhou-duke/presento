@@ -6,6 +6,16 @@ from pose.utils import pad_sequence
 import torch.utils.data as data
 import pandas as pd
 
+babyrobot_to_FER = [
+    5,  # angry
+    4,  # disgust
+    3,  # fear
+    0,  # happy
+    1,  # sad
+    2,  # surprise
+    6,  # neutral
+]
+
 babyrobot_mapper = {
     "Happiness": 0,
     "Sadness": 1,
