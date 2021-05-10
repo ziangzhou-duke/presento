@@ -17,3 +17,10 @@ python multimodal/infer.py --input=xxx
 ```
 
 where `xxx` is the path to the video file you wanna analysis
+
+## Acknowledgement
+
+Some of the model training code are based on open source projects:
+
+- https://github.com/phamquiluan/ResidualMaskingNetwork
+- https://github.com/filby89/body-face-emotion-recognition
