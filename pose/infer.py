@@ -2,12 +2,11 @@ import matplotlib
 
 matplotlib.use('Agg')
 import argparse
-import cv2
 import os
 import numpy as np
 import torch
 from pose.extract_skeleton import SkeletonExtractor
-from pose.config import NUM_FRAMES_PER_SEGMENT
+from multimodal.config import SECS_PER_SEGMENT
 from pose import POSE_ROOT_DIR
 from pose.models import BodyFaceEmotionClassifier
 from pose.utils import cv_draw_skeleton
@@ -16,7 +15,7 @@ from torch.utils.data import DataLoader
 
 
 class PoseEmotionEstimator:
-    def __init__(self):
+    def __init__(self, fps: int):
         self.poses = []
         self.left_hands = []
         self.right_hands = []
@@ -25,6 +24,7 @@ class PoseEmotionEstimator:
         self.model.eval()
         self.count = 0
         self.softmax = None
+        self.NUM_FRAMES_PER_SEGMENT = fps * SECS_PER_SEGMENT
 
         self.pose_extractor = SkeletonExtractor()
 
@@ -44,7 +44,7 @@ class PoseEmotionEstimator:
         self.left_hands.append(left_hand.ravel())
         self.right_hands.append(right_hand.ravel())
 
-        if self.count > 0 and self.count % NUM_FRAMES_PER_SEGMENT == 0:
+        if self.count > 0 and self.count % self.NUM_FRAMES_PER_SEGMENT == 0:
             self.emotion, self.softmax = self.infer_emotion(
                 np.vstack(self.poses), np.vstack(self.left_hands), np.vstack(self.right_hands)
             )

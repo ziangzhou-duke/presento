@@ -1,48 +1,52 @@
 import numpy as np
 import os
-import soundfile as sf
-import torch 
-from python_speech_features import logfbank, mfcc
-from module.model import Gvector
-import argparse
-import json
+import torch
+from python_speech_features import logfbank
+from audio_emotion.module.model.gvector import Gvector
 from scipy.special import softmax
-from numpy import argmax
-
-def parse_args():
-    desc="parse model info"
-    parser = argparse.ArgumentParser(description=desc)
-    parser.add_argument('--wav_dir',type=str, required=True)
-    parser.add_argument('--model_dir', type=str, default='exp/logfbank_channels8_bs128/chkpt/chkpt_050.pth')
-    return parser.parse_args()
-    
-args = parse_args()
-audio_dir = args.wav_dir
-model_dir = args.model_dir
 
 # config:
 mdl_kwargs = {
-    "channels": 8, 
-    "block": "BasicBlock", 
-    "num_blocks": [3,4,6,3], 
-    "embd_dim": 512, 
-    "drop": 0.5, 
+    "channels": 8,
+    "block": "BasicBlock",
+    "num_blocks": [3, 4, 6, 3],
+    "embd_dim": 512,
+    "drop": 0.5,
     "n_class": 7
 }
 
 fbank_kwargs = {
-    "winlen": 0.025, 
-    "winstep": 0.01, 
-    "nfilt": 64, 
-    "nfft": 512, 
-    "lowfreq": 0, 
-    "highfreq": None, 
-    "preemph": 0.97    
+    "winlen": 0.025,
+    "winstep": 0.01,
+    "nfilt": 64,
+    "nfft": 512,
+    "lowfreq": 0,
+    "highfreq": None,
+    "preemph": 0.97
 }
 
+index2label = {
+    "0": "Angry",
+    "1": "Disgusted",
+    "2": "Fearful",
+    "3": "Happy",
+    "4": "Neutral",
+    "5": "Sad",
+    "6": "Suprised"
+}
+
+audio_label_to_FER = [
+    0,  # angry
+    1,  # disgust
+    2,  # fear
+    3,  # happy
+    5,  # sad
+    6,  # surprise
+    4,  # neutral
+]
 
 
-class SVExtractor():
+class SVExtractor:
     def __init__(self, mdl_kwargs, fbank_kwargs, resume, device):
         self.model = self.load_model(mdl_kwargs, resume)
         self.model.eval()
@@ -52,7 +56,7 @@ class SVExtractor():
 
     def load_model(self, mdl_kwargs, resume):
         model = Gvector(**mdl_kwargs)
-        state_dict = torch.load(resume,map_location=torch.device('cpu'))
+        state_dict = torch.load(resume, map_location=torch.device('cpu'))
         if 'model' in state_dict.keys():
             state_dict = state_dict['model']
         model.load_state_dict(state_dict)
@@ -67,7 +71,7 @@ class SVExtractor():
     def __call__(self, y, sr):
         assert sr == 16000, "Support 16k wave only!"
         if len(y) > sr * 30:
-            y = y[:int(sr*30)]  # truncate the maximum length of 30s.
+            y = y[:int(sr * 30)]  # truncate the maximum length of 30s.
         feat = self.extract_fbank(y, sr, cmn=True)
         feat = torch.from_numpy(feat).unsqueeze(0)
         feat = feat.float().to(self.device)
@@ -80,15 +84,16 @@ class SVExtractor():
         return embd, rslt
 
 
-if __name__ == "__main__":
-    import soundfile
-    import librosa
-    with open('index/int2label.json','r') as f:
-        identi = json.load(f)
-    resume = model_dir
-    sv_extractor = SVExtractor(mdl_kwargs, fbank_kwargs, resume, device='cpu')
-#     y, sr = soundfile.read(audio_dir)
-    y, sr = librosa.load(audio_dir, sr=16000)
+from audio_emotion import AUDIO_ROOT_DIR
+
+MODEL_PATH = os.path.join(AUDIO_ROOT_DIR, 'chkpt_050.pth')
+sv_extractor = SVExtractor(mdl_kwargs, fbank_kwargs, MODEL_PATH, device='cpu')
+
+
+def infer_audio(y: np.ndarray, sr=16000):
+    # with open('index/int2label.json', 'r') as f:
+    #     identi = json.load(f)
     embd, result = sv_extractor(y, sr)
-    print(identi[str(argmax(softmax(result)))])
-#     print(embd, result)
+
+    # print(identi[str(argmax(softmax(result)))])
+    return softmax(result)
