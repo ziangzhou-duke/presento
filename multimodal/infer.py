@@ -7,6 +7,8 @@ from pose.infer import PoseEmotionEstimator
 from pose.config import NUM_FRAMES_PER_SEGMENT
 from realtime_face.ssd_infer import FaceEmotionEstimator, FER_2013_EMO_DICT
 from multimodal.utils import blend_image, draw_annotation
+from moviepy.editor import VideoFileClip
+import librosa
 
 
 def parse_opts():
@@ -18,6 +20,11 @@ def parse_opts():
 
 def main():
     args = parse_opts()
+
+    video = VideoFileClip(args.input)
+    audio = video.audio
+    audio.write_audiofile('tmp.wav')
+    audio = librosa.load('tmp.wav', sr=16000)
 
     # vid = cv2.VideoCapture(0)
     vid = cv2.VideoCapture(args.input)

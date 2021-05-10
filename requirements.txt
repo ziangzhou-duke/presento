@@ -8,3 +8,5 @@ scipy
 pandas
 scikit-image
 tqdm
+moviepy
+librosa
