@@ -1,5 +1,11 @@
 # STATS402 final project
 
+## Explanation of the audio model training code
+
+Ziang conducted this training framework during his research assistant role on DKU SMIIP lab, thus Ziang and DKU SMIIP
+lab own mutual ownership to the training code. Ziang has full ownership of the newly trained model and inference code.
+Please contact zz188@duke.edu for further interest and details. Thanks!
+
 ## Prerequisite
 
 - Install python libraries in `requirements.txt`
@@ -20,7 +26,8 @@ where `xxx` is the path to the video file you wanna analysis
 
 ## Acknowledgement
 
-Some of the model training code are based on open source projects:
+Some of the model training code and utilities are based on open source projects:
 
 - https://github.com/phamquiluan/ResidualMaskingNetwork
 - https://github.com/filby89/body-face-emotion-recognition
+- https://github.com/CMU-Perceptual-Computing-Lab/openpose
