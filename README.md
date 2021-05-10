@@ -24,6 +24,14 @@ python multimodal/infer.py --input=xxx
 
 where `xxx` is the path to the video file you wanna analysis
 
+The output will be `out.mp4`
+
+## Data sources
+
+- https://zenodo.org/record/3233060#.YIPjaaERVPY
+- https://www.kaggle.com/uldisvalainis/audio-emotions/download
+- https://www.kaggle.com/c/challenges-in-representation-learning-facial-expression-recognition-challenge
+
 ## Acknowledgement
 
 Some of the model training code and utilities are based on open source projects:
