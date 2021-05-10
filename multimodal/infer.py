@@ -4,7 +4,7 @@ import cv2
 import torch
 import argparse
 from pose.infer import PoseEmotionEstimator
-from pose.config import NUM_FRAMES_PER_SEGMENT
+from multimodal.config import SECS_PER_SEGMENT
 from realtime_face.ssd_infer import FaceEmotionEstimator, FER_2013_EMO_DICT
 from multimodal.utils import blend_image, draw_annotation
 from moviepy.editor import VideoFileClip
@@ -25,9 +25,12 @@ def main():
     audio = video.audio
     audio.write_audiofile('tmp.wav')
     audio = librosa.load('tmp.wav', sr=16000)
+    audio_seg_length
 
     # vid = cv2.VideoCapture(0)
     vid = cv2.VideoCapture(args.input)
+    fps = vid.get(cv2.CAP_PROP_FPS)
+    NUM_FRAMES_PER_SEGMENT = fps * SECS_PER_SEGMENT
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out_vid = cv2.VideoWriter(
