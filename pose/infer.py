@@ -6,7 +6,6 @@ import os
 import numpy as np
 import torch
 from pose.extract_skeleton import SkeletonExtractor
-from multimodal.config import SECS_PER_SEGMENT
 from pose import POSE_ROOT_DIR
 from pose.models import BodyFaceEmotionClassifier
 from pose.utils import cv_draw_skeleton
@@ -24,7 +23,7 @@ class PoseEmotionEstimator:
         self.model.eval()
         self.count = 0
         self.softmax = None
-        self.NUM_FRAMES_PER_SEGMENT = fps * SECS_PER_SEGMENT
+        self.NUM_FRAMES_PER_SEGMENT = 10
 
         self.pose_extractor = SkeletonExtractor()
 

@@ -4,12 +4,13 @@ import cv2
 import torch
 import argparse
 from pose.infer import PoseEmotionEstimator
-from multimodal.config import SECS_PER_SEGMENT
 from realtime_face.ssd_infer import FaceEmotionEstimator, FER_2013_EMO_DICT
 from audio_emotion.infer import AudioEmotionEstimator
 from multimodal.utils import blend_image, draw_annotation
 from moviepy.editor import VideoFileClip
 import librosa
+
+NUM_FRAMES_PER_SEGMENT = 10
 
 
 def parse_opts():
@@ -30,7 +31,6 @@ def main():
     # vid = cv2.VideoCapture(0)
     vid = cv2.VideoCapture(args.input)
     fps = vid.get(cv2.CAP_PROP_FPS)
-    NUM_FRAMES_PER_SEGMENT = fps * SECS_PER_SEGMENT
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out_vid = cv2.VideoWriter(
@@ -44,15 +44,10 @@ def main():
     # cv2.namedWindow('disp')
     # cv2.resizeWindow('disp', width=800)
 
-    # estimators = [PoseEmotionEstimator(fps), FaceEmotionEstimator(), AudioEmotionEstimator(audio)]
-    # ensemble_weights = np.asarray([0.53, 0.74, 0.65])
-    # softmaxes = [np.zeros(7), np.zeros(7), np.zeros(7)]
-    # n_preds = [0, 0, 0]
-
-    estimators = [PoseEmotionEstimator(fps), FaceEmotionEstimator()]
-    ensemble_weights = np.asarray([0.53, 0.74])
-    softmaxes = [np.zeros(7), np.zeros(7)]
-    n_preds = [0, 0]
+    estimators = [PoseEmotionEstimator(fps), FaceEmotionEstimator(), AudioEmotionEstimator(audio)]
+    ensemble_weights = np.asarray([0.53, 0.74, 0.3])
+    softmaxes = [np.zeros(7), np.zeros(7), np.zeros(7)]
+    n_preds = [0, 0, 0]
 
     count = 0
     label = 'neutral'
@@ -84,8 +79,8 @@ def main():
                 label = FER_2013_EMO_DICT[pred]
 
                 # reset
-                softmaxes = [np.zeros(7), np.zeros(7)]
-                n_preds = [0, 0]
+                softmaxes = [np.zeros(7), np.zeros(7), np.zeros(7)]
+                n_preds = [0, 0, 0]
 
             draw_annotation(out_frame, 10, 20, label)
 
