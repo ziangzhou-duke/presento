@@ -2,7 +2,10 @@
 ### JupyterNotebooks template
 # gitignore template for Jupyter Notebooks
 # website: http://jupyter.org/
+.idea
+.gitattributes
 
+audio_emotion/chkpt_050.pth
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
 
