@@ -1,0 +1,1 @@
+SECS_PER_SEGMENT = 0.4
