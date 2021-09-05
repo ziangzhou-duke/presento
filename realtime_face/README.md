@@ -1,9 +1,6 @@
-# Facial Expression Recognition using Residual Masking Network, in PyTorch
+# Pytorch Implementation of FER with Residual Masking Network
 
-[![pypi package](https://img.shields.io/badge/version-v1.0.1-blue)](https://pypi.org/project/rmn)
-[![circleci](https://circleci.com/gh/phamquiluan/ResidualMaskingNetwork.svg?style=shield&circle-token=3ca7f15b6bd362b625bec536d57c45fe5ef6f2c9)](https://app.circleci.com/pipelines/github/phamquiluan/ResidualMaskingNetwork)
-[![style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/phamquiluan/residualmaskingnetwork)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/challenges-in-representation-learning-a/facial-expression-recognition-on-fer2013)](https://paperswithcode.com/sota/facial-expression-recognition-on-fer2013?p=challenges-in-representation-learning-a)
+[paper](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=9411919)
 
 A [PyTorch](http://pytorch.org/) implementation of my thesis with the same name.
 
@@ -14,44 +11,12 @@ A [PyTorch](http://pytorch.org/) implementation of my thesis with the same name.
 
 # Live Demo:
 
-## Approach 1:
-1. Install from pip
-```bash
-pip install rmn
-```
-2. Run video demo by the following Python scripts
-```python
-from rmn import video_demo
-
-video_demo()
-```
-
-## Approach 2:
-1. clone the repo and install package via pip
-```bash
-git clone git@github.com:phamquiluan/ResidualMaskingNetwork.git 
-
-cd ResidualMaskingNetwork
-pip install -e .
-```
-
-2. call ```video_demo``` in `rmn` package
-```python
-from rmn import video_demo
-video_demo()
-```
-
-
-## Approach 3:
-- Model file: [download](https://drive.google.com/open?id=1_6CzlKRS9ksxlo0TjqIGXMzQE4I83tE0) (this checkpoint is trained on VEMO dataset, locate it at ```./saved/checkpoints/``` directory)
-- Download 2 files: [prototxt](https://drive.google.com/open?id=1ANVPx3JM4EcJVZOstV_kEO1Jcv74mBu5), and [res10_300x300_ssd](https://drive.google.com/open?id=1Iy_3I_mWGhBA63W0IK8tRrUuvr-WrGQ2) for face detection OpenCV. Locate at current directory or checking file path with ```ssd_infer.py``` file.
-
 ```Shell
 python ssd_infer.py
 ```
 
 <p align="center">
-<img width=500 src= "https://user-images.githubusercontent.com/24642166/72135777-da244d80-33b9-11ea-90ee-706b25c0a5a9.png"/>
+<img width=500 src="realtime_face_demo.jpg"/>
 </p>
 
 
@@ -106,38 +71,6 @@ Model | Accuracy |
 [Resnet152](https://drive.google.com/open?id=1LBaHaVtu8uKiNsoTN7wl5Pg5ywh-QxRW) | 73.22
 [Cbam\_Resnet50](https://drive.google.com/open?id=1i9zk8sGXiixkQGTA1txBxSuew6z_c86T) | 73.39
 [ResMaskingNet](https://drive.google.com/open?id=1_ASpv0QNxknMFI75gwuVWi8FeeuMoGYy) | 74.14
-[ResMaskingNet + 6](https://drive.google.com/open?id=1y28VHzJcgBpW0Qn_K0XVVd-hxG4feIHG) | 76.82
-
-
-
-Results in VEMO dataset could be found in my thesis or slide (attached below)
-
-<p id="benchmarking_imagenet"></p>
-
- 
-## Benchmarking on ImageNet 
-
-We also benchmark our model on ImageNet dataset.
-
-
-Model | Top-1 Accuracy | Top-5 Accuracy |
----------|--------|--------|
-[Resnet34](https://drive.google.com/open?id=16lErBAk7K3WswKP0wyE9S0dNrr7AF6wd) | 72.59 | 90.92
-[CBAM Resnet34](https://drive.google.com/open?id=16lErBAk7K3WswKP0wyE9S0dNrr7AF6wd) | 73.77 | 91.72
-[ResidualMaskingNetwork](https://drive.google.com/open?id=1myjp4_XL8mNJlAbz0TFjYKUc7B0N64eb) | 74.16 | 91.91
-
-
-<p id="install"></p>
- 
-
-## Installation
-- Install [PyTorch](http://pytorch.org/) by selecting your environment on the website and running the appropriate command.
-- Clone this repository and install package [prerequisites](#prerequisites) below.
-- Then download the dataset by following the [instructions](#datasets) below.
-
-
-### prerequisites
-
 * Python 3.6+
 * PyTorch 1.3+
 * Torchvision 0.4.0+ 
@@ -272,3 +205,35 @@ L. Pham, H. Vu, T. A. Tran, "Facial Expression Recognition Using Residual Maskin
 }
 ```
 
+# Pytorch Implementation of FER with Residual Masking Network
+
+[paper](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=9411919)
+
+A [PyTorch](http://pytorch.org/) implementation of my thesis with the same name.
+
+
+<p align="center">
+<img width=700 src= "https://user-images.githubusercontent.com/24642166/104806861-14b29880-580d-11eb-814b-a074847e35fe.png"/>
+</p>
+
+# Live Demo:
+
+```Shell
+python ssd_infer.py
+```
+
+<p align="center">
+<img width=500 src= "https://user-images.githubusercontent.com/24642166/72135777-da244d80-33b9-11ea-90ee-706b25c0a5a9.png"/>
+</p>
+
+
+
+
+### Table of Contents
+- <a href='#recent_update'>Recent Update</a>
+- <a href='#benchmarking_fer2013'>Benchmarking on FER2013</a>
+- <a href='#benchmarking_imagenet'>Benchmarking on ImageNet</a>
+- <a href='#install'>Installation</a>
+- <a href='#datasets'>Download datasets</a>
+- <a href='#train_fer'>Training on FER2013</a>
+- <a href='#train_imagenet'>Training on ImageNet</a>
