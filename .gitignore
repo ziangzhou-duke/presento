@@ -638,3 +638,4 @@ MigrationBackup/
 FodyWeavers.xsd
 
 audio_emotion/Emotions/
+audio_emotion/emo_feats/
