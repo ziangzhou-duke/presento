@@ -1,4 +1,4 @@
-# STATS402 final project
+# Presento - Your Personal AI Speech Coach
 
 ## Explanation of the audio model training code
 
